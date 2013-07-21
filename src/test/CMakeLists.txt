@@ -11,7 +11,7 @@ add_executable(unet
                ../buffer.cpp
                ../networkaddress.cpp
                ../networkinterface.cpp
-               ../unetmanager.cpp
+               ../kernel.cpp
                ../main.cpp)
 
 add_subdirectory(buffer)
