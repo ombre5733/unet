@@ -1,0 +1,8 @@
+- Functionality first
+  Do not restrict the design if it reduces the functionality.
+
+- Make the library easy to use
+
+- Optimize for memory rather than execution time
+  Modern microprocessors have lots of computation power but memory is
+  often at a premium.
