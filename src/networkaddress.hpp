@@ -22,6 +22,7 @@ class NetworkAddress;
 class HostAddress
 {
 public:
+    //! Creates an unspecified host address.
     HostAddress()
         : m_address(0)
     {

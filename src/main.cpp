@@ -1,23 +1,173 @@
+#include "kernel.hpp"
 #include "unetheader.hpp"
 #include "networkinterface.hpp"
 
-int main()
+#include <atomic>
+#include <thread>
+#include <vector>
+
+class MemoryBus;
+
+class MemoryBusInterface : public NetworkInterface
 {
+public:
+    MemoryBusInterface(Kernel *kernel, const std::string& name, MemoryBus* bus);
 
-    uint16_t myHostAddr = 0x0103;
+    const std::string& name() const
+    {
+        return m_name;
+    }
 
-    Kernel kernel;
+    virtual void send(Buffer& packet) override;
 
-    NetworkInterface ifc;
-    ifc.setNetworkAddress(NetworkAddress(myHostAddr, 0xFF00));
-    kernel.addInterface(&ifc);
+    void receive(const std::vector<uint8_t>& data);
+
+    void start();
+    void stop();
+
+private:
+    mutex m_receiverMutex;
+    std::thread m_receiverThread;
+    std::vector<uint8_t> m_receiverData;
+    std::atomic<bool> m_hasReceivedData;
+    std::atomic<bool> m_stop;
+
+    void run();
+
+    MemoryBus* m_bus;
+    std::string m_name;
+
+    friend class MemoryBus;
+};
+
+class MemoryBus
+{
+public:
+    void connect(MemoryBusInterface* interface)
+    {
+        lock_guard<mutex> locker(m_mutex);
+        m_interfaces.push_back(interface);
+        std::cout << interface->name() << " is connected" << std::endl;
+    }
+
+    void send(MemoryBusInterface* sender, const std::vector<uint8_t>& data)
+    {
+        lock_guard<mutex> locker(m_mutex);
+
+        for (std::vector<MemoryBusInterface*>::const_iterator
+               iter = m_interfaces.begin(),
+               end_iter = m_interfaces.end();
+             iter != end_iter; ++iter)
+        {
+            MemoryBusInterface* receiver = *iter;
+            if (receiver == sender)
+                continue;
+
+            lock_guard<mutex> locker(receiver->m_receiverMutex);
+            receiver->m_receiverData = data;
+            receiver->m_hasReceivedData = true;
+        }
+    }
+
+private:
+    mutex m_mutex;
+    std::vector<MemoryBusInterface*> m_interfaces;
+};
+
+MemoryBusInterface::MemoryBusInterface(Kernel* kernel, const std::string& name, MemoryBus *bus)
+    : NetworkInterface(kernel),
+      m_bus(bus),
+      m_name(name),
+      m_hasReceivedData(false),
+      m_stop(false)
+{
+    bus->connect(this);
+}
+
+void MemoryBusInterface::send(Buffer& packet)
+{
+    std::vector<uint8_t> data(packet.begin(), packet.end());
+    m_bus->send(this, data);
+}
+
+void MemoryBusInterface::run()
+{
+    while (!m_stop)
+    {
+        if (m_hasReceivedData)
+        {
+            lock_guard<mutex> locker(m_receiverMutex);
+            receive(m_receiverData);
+            m_hasReceivedData = false;
+        }
+    }
+}
+
+void MemoryBusInterface::receive(const std::vector<uint8_t> &data)
+{
+    Buffer b;
+    b.push_back(m_receiverData.data(), m_receiverData.size());
+    std::cout << m_name << " received " << b.size() << " bytes" << std::endl;
+    b.setInterface(this);
+    kernel()->receive(b);
+}
+
+void MemoryBusInterface::start()
+{
+    m_receiverThread = std::thread(&MemoryBusInterface::run, this);
+}
+
+void MemoryBusInterface::stop()
+{
+    m_stop = true;
+    m_receiverThread.join();
+}
+
+void app1(MemoryBus* bus)
+{
+    std::cout << "app1" << std::endl;
+
+    Kernel k;
+    MemoryBusInterface ifc(&k, "IF1", bus);
+    ifc.setNetworkAddress(NetworkAddress(0x0101, 0xFF00));
+    k.addInterface(&ifc);
+    ifc.start();
 
     UnetHeader h;
-    h.sourceAddress = myHostAddr;
-    h.destinationAddress = 0x0107;
+    h.sourceAddress = 0x0101;
+    h.destinationAddress = 0x0102;
 
     Buffer b;
     b.push_front((uint8_t*)&h, sizeof(h));
-    kernel.send(b);
+    k.send(b);
 
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ifc.stop();
+}
+
+void app2(MemoryBus* bus)
+{
+    std::cout << "app2" << std::endl;
+
+    Kernel k;
+    MemoryBusInterface ifc(&k, "IF2", bus);
+    ifc.setNetworkAddress(NetworkAddress(0x0102, 0xFF00));
+    k.addInterface(&ifc);
+    ifc.start();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ifc.stop();
+}
+
+int main()
+{
+    MemoryBus bus;
+
+    std::thread t1(app1, &bus);
+    std::thread t2(app2, &bus);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    t1.join();
+    t2.join();
 }

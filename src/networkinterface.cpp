@@ -1,6 +1,7 @@
 #include "networkinterface.hpp"
 
-NetworkInterface::NetworkInterface()
+NetworkInterface::NetworkInterface(Kernel* kernel)
+    : m_kernel(kernel)
 {
 }
 
