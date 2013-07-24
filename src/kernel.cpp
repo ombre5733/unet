@@ -28,7 +28,7 @@ void Kernel::send(Buffer& packet)
         return;
     const UnetHeader* header
             = reinterpret_cast<const UnetHeader*>(packet.begin());
-    std::cout << "Sending packet with header: " << *header << std::endl;
+    std::cout << "Kernel - Trying to send packet with header: " << *header << std::endl;
 
     HostAddress destAddr(header->destinationAddress);
     // Perform a look-up in the destination cache.
@@ -40,9 +40,10 @@ void Kernel::send(Buffer& packet)
 
     // Find an interface which we can use for sending this address.
     for (size_t idx = 0; idx < m_interfaces.size(); ++idx)
-        if (destAddr.isInSubnet(m_interfaces[idx]->networkAddress()))
+        if (destAddr.multicast()
+            || destAddr.isInSubnet(m_interfaces[idx]->networkAddress()))
         {
-            std::cout << "send via interface no " << idx << std::endl;
+            std::cout << "Kernel - Send packet via interface no " << idx << std::endl;
             m_interfaces[idx]->send(packet);
         }
 }
@@ -55,21 +56,23 @@ void Kernel::receive(Buffer& packet)
         return;
     const UnetHeader* header
             = reinterpret_cast<const UnetHeader*>(packet.begin());
-    std::cout << "Received packet with header: " << *header << std::endl;
+    std::cout << "Kernel - Received packet with header: " << *header << std::endl;
 
     assert(packet.interface());
 
     HostAddress destAddr(header->destinationAddress);
-    if (destAddr == packet.interface()->networkAddress().hostAddress())
+    if (destAddr == packet.interface()->networkAddress().hostAddress()
+        || destAddr.multicast())
     {
         // The packet belongs to the interface and as such it needs to be
         // dispatched.
-        std::cout << "this packet belongs to the link" << std::endl;
+        std::cout << "Kernel - this packet belongs to the link" << std::endl;
+        NetworkHeaderTypeDispatcher::dispatch(header->nextHeader);
     }
     else
     {
         // The packet has to be routed.
-        std::cout << "this packet has to be routed" << std::endl;
+        std::cout << "Kernel - this packet has to be routed" << std::endl;
     }
 }
 

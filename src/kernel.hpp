@@ -7,6 +7,83 @@
 //#include "physicaladdresscache.hpp"
 #include "routingtable.hpp"
 
+// Network Control Protocol
+// 0                   1                   2                   3
+// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |     Type      |     Code      |           Checksum            |
+// +---------------+---------------+---------------+---------------+
+
+// Neighbor solicitation
+// 0                   1                   2                   3
+// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |     Type      |     Code      |           Checksum            |
+// +---------------+---------------+---------------+---------------+
+// |        Target address         |                               |
+// +---------------------------------------------------------------+
+//
+// NCP fields:
+//     Type    1
+//     Code    0
+
+struct NetworkControlProtocolHeader
+{
+    NetworkControlProtocolHeader(uint8_t t, uint8_t c = 0)
+        : type(t),
+          code(c)
+    {
+    }
+
+    uint8_t type;
+    uint8_t code;
+    uint16_t checksum;
+};
+
+struct NeighborSolicitation
+{
+    NeighborSolicitation()
+        : header(1),
+          reserved(0)
+    {
+    }
+
+    NetworkControlProtocolHeader header;
+    uint16_t targetAddress;
+    uint16_t reserved;
+};
+
+struct NeighborAdvertisment
+{
+
+};
+
+class NetworkControlProtocolHandler
+{
+public:
+    void handle();
+
+    void advertiseToNeighbors();
+    void solicitNeighbor();
+};
+
+
+class NetworkHeaderTypeDispatcher
+{
+public:
+    static void dispatch(uint8_t nextHeader)
+    {
+        if (nextHeader == 1)
+        {
+            std::cout << "received a Network Control Protocol msg" << std::endl;
+        }
+    }
+};
+
+struct Kernel_traits
+{
+    typedef std::vector<NetworkInterface*> network_interface_list_type;
+};
 
 class Kernel
 {

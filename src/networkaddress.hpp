@@ -39,6 +39,11 @@ public:
         return m_address;
     }
 
+    bool multicast() const
+    {
+        return (m_address & 0x1000) != 0;
+    }
+
     //! Checks if this is an unspecified address.
     //! Returns \p true, if this host address is an unspecified address, i.e.
     //! if the address equals 0.
