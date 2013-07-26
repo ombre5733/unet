@@ -18,7 +18,7 @@ public:
         return m_name;
     }
 
-    virtual void send(Buffer& packet) override;
+    virtual void send(const LinkLayerAddress &address, Buffer &data) override;
 
     void receive(const std::vector<uint8_t>& data);
 
@@ -84,10 +84,10 @@ MemoryBusInterface::MemoryBusInterface(Kernel* kernel, const std::string& name, 
     bus->connect(this);
 }
 
-void MemoryBusInterface::send(Buffer& packet)
+void MemoryBusInterface::send(const LinkLayerAddress &address, Buffer& data)
 {
-    std::vector<uint8_t> data(packet.begin(), packet.end());
-    m_bus->send(this, data);
+    std::vector<uint8_t> rawData(data.begin(), data.end());
+    m_bus->send(this, rawData);
 }
 
 void MemoryBusInterface::run()

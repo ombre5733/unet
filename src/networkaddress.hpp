@@ -3,6 +3,11 @@
 
 #include <cstdint>
 
+struct LinkLayerAddress
+{
+
+};
+
 class NetworkAddress;
 
 //! Simply a host address.

@@ -3,29 +3,49 @@
 
 #include "buffer.hpp"
 #include "mutex.hpp"
+#include "neighborcache.hpp"
 #include "networkinterface.hpp"
 //#include "physicaladdresscache.hpp"
 #include "routingtable.hpp"
 
+#include <map>
+
 // Network Control Protocol
+//
+// All messages start with the following header:
+//
 // 0                   1                   2                   3
 // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |     Type      |     Code      |           Checksum            |
 // +---------------+---------------+---------------+---------------+
 
-// Neighbor solicitation
+// Neighbor solicitation message
 // 0                   1                   2                   3
 // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |     Type      |     Code      |           Checksum            |
 // +---------------+---------------+---------------+---------------+
-// |        Target address         |                               |
+// |        Target address         |           reserved            |
 // +---------------------------------------------------------------+
 //
 // NCP fields:
 //     Type    1
 //     Code    0
+
+// Neighbor advertisment message
+// 0                   1                   2                   3
+// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// |     Type      |     Code      |           Checksum            |
+// +---------------+---------------+---------------+---------------+
+// |        Target address         |S|         reserved            |
+// +---------------------------------------------------------------+
+//
+// NCP fields:
+//     Type    2
+//     Code    0
+
 
 struct NetworkControlProtocolHeader
 {
@@ -56,6 +76,10 @@ struct NeighborSolicitation
 struct NeighborAdvertisment
 {
 
+
+    NetworkControlProtocolHeader header;
+    uint16_t targetAddress;
+    uint16_t reserved;
 };
 
 class NetworkControlProtocolHandler
@@ -78,12 +102,17 @@ public:
             std::cout << "received a Network Control Protocol msg" << std::endl;
         }
     }
+
+    static void onNetworkControlProtocol()
+    {
+    }
 };
 
 struct Kernel_traits
 {
     typedef std::vector<NetworkInterface*> network_interface_list_type;
 };
+
 
 class Kernel
 {
@@ -102,6 +131,7 @@ private:
     mutex m_mutex;
     std::vector<NetworkInterface*> m_interfaces;
     RoutingTable m_routingTable;
+    NeighborCache m_neighborCache;
 
     typedef boost::intrusive::member_hook<
             Buffer,

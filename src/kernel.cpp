@@ -38,13 +38,21 @@ void Kernel::send(Buffer& packet)
     // consult the routing table.
     destAddr = m_routingTable.resolve(destAddr);
 
+    const NeighborCache::Entry* cacheEntry
+            = m_neighborCache.lookup(destAddr);
+    if (cacheEntry)
+    {
+        cacheEntry->interface->send(cacheEntry->linkLayerAddress, packet);
+        return;
+    }
+
     // Find an interface which we can use for sending this address.
     for (size_t idx = 0; idx < m_interfaces.size(); ++idx)
         if (destAddr.multicast()
             || destAddr.isInSubnet(m_interfaces[idx]->networkAddress()))
         {
             std::cout << "Kernel - Send packet via interface no " << idx << std::endl;
-            m_interfaces[idx]->send(packet);
+            m_interfaces[idx]->send(LinkLayerAddress(), packet);
         }
 }
 
