@@ -15,7 +15,6 @@ class NetworkInterface;
 //! A collection of neighbor data.
 class NeighborInfo
 {
-
     typedef boost::intrusive::member_hook<
             Buffer,
             Buffer::slist_hook_t,

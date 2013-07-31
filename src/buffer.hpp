@@ -55,7 +55,7 @@ private:
 
 public:
     typedef boost::intrusive::slist_member_hook<
-        boost::intrusive::link_mode<boost::intrusive::normal_link> >
+        boost::intrusive::link_mode<boost::intrusive::safe_link> >
         slist_hook_t;
     slist_hook_t m_slistHook;
 };

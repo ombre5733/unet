@@ -141,19 +141,22 @@ void app1(MemoryBus* bus)
     ifc.start();
 
     // Neighbor Advertisment
-    Buffer b;
+    Buffer* b = new Buffer;
     {
-        NeighborSolicitation sol;
-        b.push_front((uint8_t*)&sol, sizeof(sol));
+        //NeighborSolicitation sol;
+        //b.push_front((uint8_t*)&sol, sizeof(sol));
         // b.setDestinationAddress(0x
 
         UnetHeader h;
-        h.sourceAddress = 0;
-        h.destinationAddress = 0x1000;
+        h.sourceAddress = 0x0101;
+        h.destinationAddress = 0x0102;
         h.nextHeader = 1;
-        b.push_front((uint8_t*)&h, sizeof(h));
+        b->push_front((uint8_t*)&h, sizeof(h));
+
+        uint16_t datum = 0x1234;
+        b->push_back((uint8_t*)&datum, sizeof(datum));
     }
-    k.send(b);
+    k.send(*b);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();

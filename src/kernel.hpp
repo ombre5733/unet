@@ -101,6 +101,7 @@ class NetworkHeaderTypeDispatcher
 public:
     static void dispatch(uint8_t nextHeader)
     {
+        std::cout << "NetworkHeaderTypeDispatcher - nextHeader = " << (uint16_t)nextHeader << std::endl;
         if (nextHeader == 1)
         {
             std::cout << "received a Network Control Protocol msg" << std::endl;

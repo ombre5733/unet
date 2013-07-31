@@ -22,9 +22,29 @@ void Kernel::addToPollingList(NetworkInterface& interface)
 
 void Kernel::send(Buffer& packet)
 {
-    lock_guard<mutex> locker(m_mutex);
-    m_packetsToSend.push_back(packet);
+    {
+        lock_guard<mutex> locker(m_mutex);
+        m_packetsToSend.push_back(packet);
+    }
+    senderThread();
 }
+
+namespace
+{
+
+void sendToNeighbor(NeighborInfo* neighbor, Buffer& packet)
+{
+    if (neighbor->state() == NeighborInfo::Reachable)
+        neighbor->interface->send(neighbor->linkLayerAddress, packet);
+    else
+    {
+        // TODO: If send queue is too long, remove the packet at
+        // the front (the oldest one)
+        //neighbor->sendQueue().push_back(packet);
+    }
+}
+
+} // anonymous namespace
 
 void Kernel::senderThread()
 {
@@ -49,7 +69,7 @@ void Kernel::senderThread()
     NeighborInfo* nextHopInfo = m_nextHopCache.lookupDestination(destAddr);
     if (nextHopInfo)
     {
-        nextHopInfo->interface->send(nextHopInfo->linkLayerAddress, packet);
+        sendToNeighbor(nextHopInfo, packet);
         return;
     }
 
@@ -61,7 +81,7 @@ void Kernel::senderThread()
     if (nextHopInfo)
     {
         //m_nextHopCache.cacheDestination(destAddr, nextHopInfo);
-        nextHopInfo->interface->send(nextHopInfo->linkLayerAddress, packet);
+        sendToNeighbor(nextHopInfo, packet);
         return;
     }
 
@@ -74,14 +94,14 @@ void Kernel::senderThread()
         {
             nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
                               routedDestAddr, interface);
-            // TODO: If send queue is too long, remove the packet at
-            // the front (the oldest one)
-            nextHopInfo->sendQueue().push_back(packet);
+            sendToNeighbor(nextHopInfo, packet);
 
+            std::cout << "Kernel - Send neighbor solicitation" << std::endl;
             Buffer* b = new Buffer;
             UnetHeader header;
             header.sourceAddress = interface->networkAddress().hostAddress();
             header.destinationAddress = HostAddress::multicastAddress();
+            header.nextHeader = 1;
             b->push_back((uint8_t*)&header, sizeof(header));
 
             NeighborSolicitation solicitation;
