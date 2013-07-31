@@ -70,6 +70,12 @@ public:
         return m_address;
     }
 
+    static HostAddress multicastAddress()
+    {
+        return 0x1000;
+    }
+
+
 private:
     uint16_t m_address;
 };

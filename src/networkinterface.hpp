@@ -62,6 +62,8 @@ public:
 
     explicit NetworkInterface(Kernel* kernel);
 
+    virtual void broadcast(Buffer& data) {}
+
     //! Returns the domain to which the interface is connected.
     Domain domain() const;
 
@@ -74,8 +76,8 @@ public:
     //! Returns the link-layer address of this interface.
     LinkLayerAddress linkLayerAddress() const;
 
-    std::pair<bool, LinkLayerAddress> neighborLinkLayerAddress(
-            NetworkAddress networkAddress) const;
+    virtual std::pair<bool, LinkLayerAddress> neighborLinkLayerAddress(
+            HostAddress address) const;
 
     //! Returns the network address which has been set for this interface.
     NetworkAddress networkAddress() const

@@ -26,7 +26,7 @@ digraph G {
     ]
 
     NeighborEntry [
-      label = "{NeighborEntry|+ State\n+ Address\n+ Interface|}"
+      label = "{NeighborEntry|+ State\n+ Address\n+ Interface\n+ Queue|}"
     ]
     NeighborList -> NeighborEntry [arrowhead = odiamond]
 
@@ -40,7 +40,7 @@ digraph G {
     { rank=same; DestinationEntry NeighborEntry }
   }
 
-  DestinationCache -> NetworkInterface [ltail = cluster_Kernel
+  DestinationEntry -> NetworkInterface [ltail = cluster_Kernel
                                         arrowhead = odiamond]
 
   NeighborEntry -> NetworkInterface [style = dashed]
@@ -59,9 +59,20 @@ digraph G {
 
   BufferPool -> Buffer [arrowhead = odiamond]
 
-  NetworkInterface -> BufferPool
+  NetworkInterface -> Buffer [style = dashed]
 
-  DestinationCache -> BufferPool [ltail = cluster_Kernel]
+  //DestinationCache -> BufferPool [ltail = cluster_Kernel]
 
-  { rank=same; BufferPool NetworkInterface }
+  NeighborEntry -> Buffer [style = dashed]
+
+  { rank=same; Buffer NetworkInterface }
+
+  subgraph cluster_ULH {
+    style = invis
+    UpperLayerHandler [
+      label = "Upper layer protocol handler"
+    ]
+  }
+
+  UpperLayerHandler -> NeighborList [lhead = cluster_Kernel]
 }

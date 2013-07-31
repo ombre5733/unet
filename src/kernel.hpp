@@ -75,7 +75,11 @@ struct NeighborSolicitation
 
 struct NeighborAdvertisment
 {
-
+    NeighborAdvertisment()
+        : header(2),
+          reserved(0)
+    {
+    }
 
     NetworkControlProtocolHeader header;
     uint16_t targetAddress;
@@ -113,7 +117,6 @@ struct Kernel_traits
     typedef std::vector<NetworkInterface*> network_interface_list_type;
 };
 
-
 class Kernel
 {
 public:
@@ -127,11 +130,13 @@ public:
     void send(Buffer& packet);
     void receive(Buffer& packet);
 
+    void senderThread();
+
 private:
     mutex m_mutex;
-    std::vector<NetworkInterface*> m_interfaces;
+    std::vector<NetworkInterface*> m_interfaces; // TODO: use a static_vector
     RoutingTable m_routingTable;
-    NeighborCache m_neighborCache;
+    NextHopCache m_nextHopCache;
 
     typedef boost::intrusive::member_hook<
             Buffer,

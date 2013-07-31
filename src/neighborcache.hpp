@@ -1,33 +1,95 @@
 #ifndef NEIGHBORCACHE_HPP
 #define NEIGHBORCACHE_HPP
 
+#include "buffer.hpp"
 #include "networkaddress.hpp"
 
+//#include <boost/container/static_vector.hpp>
+
+#include <list>
 #include <map>
+#include <vector>
 
 class NetworkInterface;
 
-
-class AddressCache
+//! A collection of neighbor data.
+class NeighborInfo
 {
+
+    typedef boost::intrusive::member_hook<
+            Buffer,
+            Buffer::slist_hook_t,
+            &Buffer::m_slistHook> list_options;
+    typedef boost::intrusive::slist<
+            Buffer,
+            list_options,
+            boost::intrusive::cache_last<true> > BufferList;
+
 public:
-    struct InterfaceInfo
+    enum State
     {
+        Incomplete,
+        Reachable,
+        Stale,
+        Delay,
+        Probe
     };
 
-    const InterfaceInfo* lookup(HostAddress address) const
+    NeighborInfo()
+        : m_state(Incomplete)
     {
-        /*
-        // 1. Have a look if we have already sent something to this address.
-        if (m_destinationCache.contains(address))
-            return m_destinationCache[address];
-        // 2.
-        */
-        return 0;
     }
 
-    std::map<HostAddress, const InterfaceInfo*> m_destinationCache;
-    std::map<HostAddress, const InterfaceInfo*> m_neighborCache;
+    NeighborInfo(HostAddress address, NetworkInterface* ifc)
+        : m_hostAddress(address),
+          interface(ifc),
+          m_state(Incomplete)
+    {
+    }
+
+    HostAddress address() const
+    {
+        return m_hostAddress;
+    }
+
+    BufferList& sendQueue()
+    {
+        return m_sendQueue;
+    }
+
+    void setState(State state);
+
+    State state() const
+    {
+        return m_state;
+    }
+
+    NetworkInterface* interface;
+    LinkLayerAddress linkLayerAddress;
+
+private:
+    HostAddress m_hostAddress;
+    State m_state;
+    BufferList m_sendQueue;
+};
+
+// - lookupDestination() Called from the kernel if it wants to send a
+//   packet to a destination.
+class NextHopCache
+{
+public:
+    NeighborInfo* lookupDestination(HostAddress address) const;
+    NeighborInfo* lookupNeighbor(HostAddress address) const;
+    NeighborInfo* createNeighborCacheEntry(HostAddress address,
+                                           NetworkInterface* interface);
+    void removeNeighborCacheEntry();
+
+private:
+    typedef std::map<HostAddress, const NeighborInfo*> AddressToHopInfoMap;
+    typedef std::list<NeighborInfo> NeighborCacheVector;
+
+    AddressToHopInfoMap m_destinationCache;  // TODO: use a sorted list
+    NeighborCacheVector m_neighborCache; // TODO: use a boost::static_vector
 };
 
 

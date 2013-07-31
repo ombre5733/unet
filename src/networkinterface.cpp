@@ -5,6 +5,12 @@ NetworkInterface::NetworkInterface(Kernel* kernel)
 {
 }
 
+std::pair<bool, LinkLayerAddress> NetworkInterface::neighborLinkLayerAddress(
+        HostAddress address) const
+{
+    return std::pair<bool, LinkLayerAddress>(false, LinkLayerAddress());
+}
+
 void NetworkInterface::setNetworkAddress(const NetworkAddress &addr)
 {
     m_networkAddress = addr;
