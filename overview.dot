@@ -1,0 +1,67 @@
+digraph G {
+
+  compound=true
+
+  node [
+    shape = "record"
+  ]
+
+  NetworkInterface [
+    label = "{NetworkInterface|+ NetworkAddress\n+ LinkLayerAddress|+ send()\n+ broadcast()}"
+  ]
+
+  subgraph cluster_Kernel {
+    label = "Kernel"
+
+    RoutingTable [
+      label = "{RoutingTable||+ resolve()}"
+    ]
+
+    NeighborList [
+      label = "{NeighborList||+ createEntry()\n+ removeEntry()\n+ findEntry()}"
+    ]
+
+    DestinationCache [
+      label = "{DestinationCache||+ lookup()\n+ cache()}"
+    ]
+
+    NeighborEntry [
+      label = "{NeighborEntry|+ State\n+ Address\n+ Interface|}"
+    ]
+    NeighborList -> NeighborEntry [arrowhead = odiamond]
+
+    DestinationEntry [
+      label = "{DestinationEntry|+ DestinationAddress\n+ NextHop|}"
+    ]
+    DestinationCache -> DestinationEntry [arrowhead = odiamond]
+    DestinationEntry -> NeighborEntry [style = dashed]
+
+    { rank=same; RoutingTable NeighborList DestinationCache }
+    { rank=same; DestinationEntry NeighborEntry }
+  }
+
+  DestinationCache -> NetworkInterface [ltail = cluster_Kernel
+                                        arrowhead = odiamond]
+
+  NeighborEntry -> NetworkInterface [style = dashed]
+
+  PhysicalLink [
+    label = "Physical link"
+    shape = ellipse
+  ]
+
+  NetworkInterface -> PhysicalLink [style = dotted
+                                    arrowhead = none]
+
+  BufferPool
+
+  Buffer
+
+  BufferPool -> Buffer [arrowhead = odiamond]
+
+  NetworkInterface -> BufferPool
+
+  DestinationCache -> BufferPool [ltail = cluster_Kernel]
+
+  { rank=same; BufferPool NetworkInterface }
+}
