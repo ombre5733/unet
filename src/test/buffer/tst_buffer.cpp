@@ -14,16 +14,8 @@ TEST(Buffer, Initialization)
 
 TEST(BufferList, Alle)
 {
-    typedef boost::intrusive::member_hook<
-            Buffer,
-            Buffer::slist_hook_t,
-            &Buffer::m_slistHook> list_options;
-    typedef boost::intrusive::slist<
-            Buffer,
-            list_options,
-            boost::intrusive::cache_last<true> > BufferList;
-
     BufferList l;
     Buffer b;
     l.push_back(b);
+    l.pop_front();
 }

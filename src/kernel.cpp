@@ -20,55 +20,68 @@ void Kernel::addToPollingList(NetworkInterface& interface)
     m_interfacesToPoll.push_back(interface);
 }
 
-void Kernel::send(Buffer& packet)
-{
-    {
-        lock_guard<mutex> locker(m_mutex);
-        m_packetsToSend.push_back(packet);
-    }
-    senderThread();
-}
-
 namespace
 {
 
 void sendToNeighbor(NeighborInfo* neighbor, Buffer& packet)
 {
     if (neighbor->state() == NeighborInfo::Reachable)
-        neighbor->interface->send(neighbor->linkLayerAddress, packet);
+        neighbor->interface()->send(neighbor->linkLayerAddress, packet);
     else
     {
         // TODO: If send queue is too long, remove the packet at
         // the front (the oldest one)
-        //neighbor->sendQueue().push_back(packet);
+        neighbor->sendQueue().push_back(packet);
     }
 }
 
+
+void sendNeighborSolicitation(NetworkInterface* interface,
+                              HostAddress destAddr)
+{
+    std::cout << "Kernel - Send neighbor solicitation" << std::endl;
+    Buffer* b = BufferPool::allocate();
+
+    NetworkControlProtocolMessageBuilder builder(*b);
+    builder.createNeighborSolicitation(destAddr);
+    //builder.addSourceLinkLayerAddressOption();
+
+    UnetHeader header;
+    header.sourceAddress = interface->networkAddress().hostAddress();
+    header.destinationAddress = HostAddress::multicastAddress();
+    header.nextHeader = 1;
+    b->push_front((uint8_t*)&header, sizeof(header));
+
+    std::pair<bool, LinkLayerAddress> lla
+            = interface->neighborLinkLayerAddress(destAddr);
+    if (lla.first)
+    {
+        std::cout << "Send unicast to neighor" << std::endl;
+        interface->send(lla.second, *b);
+    }
+    else
+    {
+        std::cout << "Send a broadcast to neighbor" << std::endl;
+        interface->broadcast(*b);
+    }
+}
+
+
 } // anonymous namespace
 
-void Kernel::senderThread()
-{
-    lock_guard<mutex> locker(m_mutex);
-    if (m_packetsToSend.empty())
-        return;
 
-    // Extract the first packet from the queue.
-    Buffer& packet = m_packetsToSend.front();
-    m_packetsToSend.pop_front();
-    if (packet.size() < sizeof(UnetHeader))
-    {
-        // diagnostics.corruptHeader(packet.data());
-        return;
-    }
-    const UnetHeader* header
-            = reinterpret_cast<const UnetHeader*>(packet.begin());
-    std::cout << "Kernel - Trying to send packet with header: " << *header << std::endl;
-    HostAddress destAddr(header->destinationAddress);
+void Kernel::send(NetworkInterface* sendingInterface, HostAddress destination,
+                  Buffer& packet)
+{
 
     // Perform a look-up in the destination cache.
-    NeighborInfo* nextHopInfo = m_nextHopCache.lookupDestination(destAddr);
+    NeighborInfo* nextHopInfo = m_nextHopCache.lookupDestination(destination);
     if (nextHopInfo)
     {
+        UnetHeader header;
+        header.destinationAddress = destination;
+        header.sourceAddress = nextHopInfo->interface()->networkAddress().hostAddress();
+        packet.push_front((uint8_t*)&header, sizeof(header));
         sendToNeighbor(nextHopInfo, packet);
         return;
     }
@@ -76,10 +89,14 @@ void Kernel::senderThread()
     // We have not found an entry in the destination cache. The next step is to
     // consult the routing table, which will map the destination address to
     // the one of the next neighbor.
-    HostAddress routedDestAddr = m_routingTable.resolve(destAddr);
-    nextHopInfo = m_nextHopCache.lookupNeighbor(routedDestAddr);
+    HostAddress routedDestination = m_routingTable.resolve(destination);
+    nextHopInfo = m_nextHopCache.lookupNeighbor(routedDestination);
     if (nextHopInfo)
     {
+        UnetHeader header;
+        header.destinationAddress = destination;
+        header.sourceAddress = nextHopInfo->interface()->networkAddress().hostAddress();
+        packet.push_front((uint8_t*)&header, sizeof(header));
         //m_nextHopCache.cacheDestination(destAddr, nextHopInfo);
         sendToNeighbor(nextHopInfo, packet);
         return;
@@ -90,55 +107,43 @@ void Kernel::senderThread()
     for (size_t idx = 0; idx < m_interfaces.size(); ++idx)
     {
         NetworkInterface* interface = m_interfaces[idx];
-        if (routedDestAddr.isInSubnet(interface->networkAddress()))
+        if (routedDestination.isInSubnet(interface->networkAddress()))
         {
             nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
-                              routedDestAddr, interface);
+                              routedDestination, interface);
+
+            UnetHeader header;
+            header.destinationAddress = destination;
+            header.sourceAddress = nextHopInfo->interface()->networkAddress().hostAddress();
+            packet.push_front((uint8_t*)&header, sizeof(header));
+            // Enqueue the packet in the neighbor info.
             sendToNeighbor(nextHopInfo, packet);
 
-            std::cout << "Kernel - Send neighbor solicitation" << std::endl;
-            Buffer* b = new Buffer;
-            UnetHeader header;
-            header.sourceAddress = interface->networkAddress().hostAddress();
-            header.destinationAddress = HostAddress::multicastAddress();
-            header.nextHeader = 1;
-            b->push_back((uint8_t*)&header, sizeof(header));
-
-            NeighborSolicitation solicitation;
-            solicitation.targetAddress = destAddr;
-            b->push_back((uint8_t*)&solicitation, sizeof(solicitation));
-
-            std::pair<bool, LinkLayerAddress> lla
-                    = interface->neighborLinkLayerAddress(routedDestAddr);
-            if (lla.first)
-            {
-                std::cout << "Kernel - Send packet via interface no " << idx << std::endl;
-                interface->send(lla.second, packet);
-            }
-            else
-            {
-                interface->broadcast(*b);
-
-                // We can only send our packet, when we have received a
-                // neighbor advertisment.
-            }
-
+            sendNeighborSolicitation(interface, routedDestination);
             return;
         }
     }
 
     // Cannot find a route for this packet.
     // diagnostics.unknownRoute(destAddr);
+#if 0
+    {
+        lock_guard<mutex> locker(m_mutex);
+        m_packetsToSend.push_back(packet);
+    }
+    senderThread();
+#endif
 }
 
 void Kernel::receive(Buffer& packet)
 {
     lock_guard<mutex> locker(m_mutex);
 
-    if (packet.size() < sizeof(UnetHeader))
+    if (packet.dataSize() < sizeof(UnetHeader))
         return;
     const UnetHeader* header
-            = reinterpret_cast<const UnetHeader*>(packet.begin());
+            = reinterpret_cast<const UnetHeader*>(packet.dataBegin());
+    packet.advanceData(sizeof(header));
     std::cout << "Kernel - Received packet with header: " << *header << std::endl;
 
     assert(packet.interface());
@@ -150,7 +155,7 @@ void Kernel::receive(Buffer& packet)
         // The packet belongs to the interface and as such it needs to be
         // dispatched.
         std::cout << "Kernel - this packet belongs to the link" << std::endl;
-        NetworkHeaderTypeDispatcher::dispatch(header->nextHeader);
+        protocol_t::dispatch(header, packet);
     }
     else
     {

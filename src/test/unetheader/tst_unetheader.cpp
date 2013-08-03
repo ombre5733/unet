@@ -2,8 +2,10 @@
 
 #include "gtest/gtest.h"
 
-TEST(UnetHeader, SizeAndAlignment)
+TEST(UnetHeader, MemoryLayout)
 {
+    ASSERT_EQ(true, std::is_standard_layout<UnetHeader>());
+
     UnetHeader hdr;
     EXPECT_EQ(8, sizeof(hdr));
 

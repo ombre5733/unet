@@ -112,11 +112,11 @@ void MemoryBusInterface::run()
 
 void MemoryBusInterface::receive(const std::vector<uint8_t> &data)
 {
-    Buffer b;
-    b.push_back(m_receiverData.data(), m_receiverData.size());
-    std::cout << m_name << " received " << b.size() << " bytes" << std::endl;
-    b.setInterface(this);
-    kernel()->receive(b);
+    Buffer* b = BufferPool::allocate();
+    b->push_back(m_receiverData.data(), m_receiverData.size());
+    std::cout << m_name << " received " << b->size() << " bytes" << std::endl;
+    b->setInterface(this);
+    kernel()->receive(*b);
 }
 
 void MemoryBusInterface::start()
@@ -141,22 +141,24 @@ void app1(MemoryBus* bus)
     ifc.start();
 
     // Neighbor Advertisment
-    Buffer* b = new Buffer;
+    Buffer* b = BufferPool::allocate();
     {
         //NeighborSolicitation sol;
         //b.push_front((uint8_t*)&sol, sizeof(sol));
         // b.setDestinationAddress(0x
 
+        /*
         UnetHeader h;
         h.sourceAddress = 0x0101;
         h.destinationAddress = 0x0102;
         h.nextHeader = 1;
         b->push_front((uint8_t*)&h, sizeof(h));
+        */
 
         uint16_t datum = 0x1234;
         b->push_back((uint8_t*)&datum, sizeof(datum));
     }
-    k.send(*b);
+    k.send(0, HostAddress(0x0102), *b);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();
@@ -178,6 +180,18 @@ void app2(MemoryBus* bus)
 
 int main()
 {
+    BufferList l1;
+    BufferList l2 = BufferList();
+    {
+        Buffer* b = BufferPool::allocate();
+        l1.push_back(*b);
+    }
+    {
+        Buffer& b = l1.front();
+        l1.pop_front();
+        l2.push_back(b);
+    }
+
     MemoryBus bus;
 
     std::thread t1(app1, &bus);

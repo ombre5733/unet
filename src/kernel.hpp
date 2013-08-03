@@ -8,108 +8,34 @@
 //#include "physicaladdresscache.hpp"
 #include "routingtable.hpp"
 
+#include "unetheader.hpp"
+#include "networkcontrolprotocol.hpp"
+
 #include <map>
 
-// Network Control Protocol
-//
-// All messages start with the following header:
-//
-// 0                   1                   2                   3
-// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |     Type      |     Code      |           Checksum            |
-// +---------------+---------------+---------------+---------------+
 
-// Neighbor solicitation message
-// 0                   1                   2                   3
-// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |     Type      |     Code      |           Checksum            |
-// +---------------+---------------+---------------+---------------+
-// |        Target address         |           reserved            |
-// +---------------------------------------------------------------+
-//
-// NCP fields:
-//     Type    1
-//     Code    0
-
-// Neighbor advertisment message
-// 0                   1                   2                   3
-// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// |     Type      |     Code      |           Checksum            |
-// +---------------+---------------+---------------+---------------+
-// |        Target address         |S|         reserved            |
-// +---------------------------------------------------------------+
-//
-// NCP fields:
-//     Type    2
-//     Code    0
-
-
-struct NetworkControlProtocolHeader
-{
-    NetworkControlProtocolHeader(uint8_t t, uint8_t c = 0)
-        : type(t),
-          code(c)
-    {
-    }
-
-    uint8_t type;
-    uint8_t code;
-    uint16_t checksum;
-};
-
-struct NeighborSolicitation
-{
-    NeighborSolicitation()
-        : header(1),
-          reserved(0)
-    {
-    }
-
-    NetworkControlProtocolHeader header;
-    uint16_t targetAddress;
-    uint16_t reserved;
-};
-
-struct NeighborAdvertisment
-{
-    NeighborAdvertisment()
-        : header(2),
-          reserved(0)
-    {
-    }
-
-    NetworkControlProtocolHeader header;
-    uint16_t targetAddress;
-    uint16_t reserved;
-};
-
-class NetworkControlProtocolHandler
-{
-public:
-    void handle();
-
-    void advertiseToNeighbors();
-    void solicitNeighbor();
-};
-
-
+template <typename DerivedT>
 class NetworkHeaderTypeDispatcher
 {
 public:
-    static void dispatch(uint8_t nextHeader)
+    void dispatch(uint8_t nextHeader)
     {
         std::cout << "NetworkHeaderTypeDispatcher - nextHeader = " << (uint16_t)nextHeader << std::endl;
         if (nextHeader == 1)
         {
-            std::cout << "received a Network Control Protocol msg" << std::endl;
+            derived()->onNetworkControlProtocol();
         }
     }
 
-    static void onNetworkControlProtocol()
+    void onNetworkControlProtocol()
     {
+        std::cout << "received a Network Control Protocol msg" << std::endl;
+    }
+
+private:
+    DerivedT* derived()
+    {
+        return static_cast<DerivedT*>(this);
     }
 };
 
@@ -118,9 +44,36 @@ struct Kernel_traits
     typedef std::vector<NetworkInterface*> network_interface_list_type;
 };
 
-class Kernel
+class PV
 {
 public:
+    virtual void swapSourceAndDestination() = 0;
+};
+
+template <typename DerivedT>
+class Protocol : public NetworkControlProtocol<DerivedT>
+{
+public:
+    void dispatch(const UnetHeader* header, Buffer &packet)
+    {
+        switch (header->nextHeader)
+        {
+            case NetworkControlProtocol<DerivedT>::headerType:
+                NetworkControlProtocol<DerivedT>::dispatch(header, packet);
+                break;
+
+            default:
+                // ... dignostics ...
+                break;
+        }
+    }
+};
+
+class Kernel : public Protocol<Kernel>
+{
+public:
+    typedef Protocol<Kernel> protocol_t;
+
     Kernel();
 
     //void enqueuePacket(Buffer& packet);
@@ -128,25 +81,64 @@ public:
     void addInterface(NetworkInterface* ifc);
     void addToPollingList(NetworkInterface& interface);
 
-    void send(Buffer& packet);
+    //! Sends a packet.
+    //! Sends the packet \p packet via the \p sendingInterface to the
+    //! requested \p destination.
+    void send(NetworkInterface* sendingInterface, HostAddress destination,
+              Buffer& packet);
     void receive(Buffer& packet);
 
     void senderThread();
+
+    void onNcpNeighborAdvertisment(Buffer &packet)
+    {
+        std::cout << "Kernel - Received NCP neighbor advertisment" << std::endl;
+    }
+
+    void onNcpNeighborSolicitation(const NeighborSolicitation* solicitation,
+                                   Buffer& packet)
+    {
+        std::cout << "Kernel - Received NCP neighbor solicitation" << std::endl;
+
+        NeighborSolicitation sol = *solicitation;
+        NcpOption::SourceLinkLayerAddress* srcLlaOption
+                = NcpOption::find<NcpOption::SourceLinkLayerAddress>(
+                      packet.dataBegin() + sizeof(NeighborSolicitation),
+                      packet.dataEnd());
+        if (srcLlaOption)
+        {
+            std::cout << "Kernel - Have src LLA" << std::endl;
+        }
+
+        packet.clearData();
+
+        std::cout << "Kernel - Send neighbor advertisment" << std::endl;
+
+        NetworkControlProtocolMessageBuilder builder(packet);
+        builder.createNeighborAdvertisment(sol.targetAddress);
+        builder.addTargetLinkLayerAddressOption(
+                    packet.interface()->linkLayerAddress());
+
+        //! \todo Whould be nicer if we could swap the source and destination
+        //! in-place.
+        //packet.swap
+        {
+            UnetHeader* hdr = reinterpret_cast<UnetHeader*>(packet.begin());
+            std::cout << "Changing from " << hdr->sourceAddress << "-" << hdr->destinationAddress;
+            hdr->destinationAddress = hdr->sourceAddress;
+            hdr->sourceAddress = packet.interface()->networkAddress().hostAddress();
+            std::cout << "   to   " << hdr->sourceAddress << "-" << hdr->destinationAddress << std::endl;
+        }
+
+        //! \todo What is the correct interface and address?
+        packet.interface()->broadcast(packet);
+    }
 
 private:
     mutex m_mutex;
     std::vector<NetworkInterface*> m_interfaces; // TODO: use a static_vector
     RoutingTable m_routingTable;
     NextHopCache m_nextHopCache;
-
-    typedef boost::intrusive::member_hook<
-            Buffer,
-            Buffer::slist_hook_t,
-            &Buffer::m_slistHook> list_options;
-    typedef boost::intrusive::slist<
-            Buffer,
-            list_options,
-            boost::intrusive::cache_last<true> > BufferList;
     BufferList m_packetsToSend;
 
     typedef boost::intrusive::member_hook<

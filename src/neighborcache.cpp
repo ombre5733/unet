@@ -9,8 +9,8 @@ void NeighborInfo::setState(State state)
 NeighborInfo* NextHopCache::createNeighborCacheEntry(
         HostAddress address, NetworkInterface *interface)
 {
-    m_neighborCache.push_back(NeighborInfo(address, interface));
-    return &m_neighborCache.back();
+    m_neighborCache.push_back(new NeighborInfo(address, interface));
+    return m_neighborCache.back();
 }
 
 NeighborInfo* NextHopCache::lookupDestination(HostAddress address) const
@@ -26,8 +26,8 @@ NeighborInfo* NextHopCache::lookupNeighbor(HostAddress address) const
     for (NeighborCacheVector::const_iterator iter = m_neighborCache.begin(),
                                          end_iter = m_neighborCache.end();
          iter != end_iter; ++iter)
-        if (iter->address() == address)
-            return const_cast<NeighborInfo*>(&*iter);
+        if ((*iter)->address() == address)
+            return *iter;
     return 0;
 }
 

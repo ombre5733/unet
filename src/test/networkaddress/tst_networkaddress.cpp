@@ -2,6 +2,15 @@
 
 #include "gtest/gtest.h"
 
+TEST(HostAddress, MemoryLayout)
+{
+    // We require the host address to be a standard-layout class such that
+    // we can copy it. TODO: clarify this with is_trivial
+    ASSERT_EQ(true, std::is_standard_layout<HostAddress>::value);
+
+    ASSERT_EQ(2, sizeof(HostAddress));
+}
+
 TEST(HostAddress, Initialization)
 {
     HostAddress addr1;

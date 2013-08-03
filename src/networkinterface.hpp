@@ -2,6 +2,7 @@
 #define NETWORKINTERFACE_HPP
 
 #include "buffer.hpp"
+#include "linklayeraddress.hpp"
 #include "networkaddress.hpp"
 
 class Kernel;
@@ -74,7 +75,12 @@ public:
     }
 
     //! Returns the link-layer address of this interface.
-    LinkLayerAddress linkLayerAddress() const;
+    LinkLayerAddress linkLayerAddress() const
+    {
+        return m_linkLayerAddress;
+    }
+
+    const char* name() const;
 
     virtual std::pair<bool, LinkLayerAddress> neighborLinkLayerAddress(
             HostAddress address) const;
@@ -85,14 +91,19 @@ public:
         return m_networkAddress;
     }
 
+    void setLinkLayerAddress(LinkLayerAddress address);
+    void setName(const char* name);
     void setNetworkAddress(const NetworkAddress& addr);
 
     virtual void send(const LinkLayerAddress& address, Buffer& data) {}
 
 private:
+    //! The link-layer address of this interface.
+    LinkLayerAddress m_linkLayerAddress;
+    Kernel* m_kernel;
+    const char* m_name;
     //! The address which has been assigned to the interface.
     NetworkAddress m_networkAddress;
-    Kernel* m_kernel;
 
     typedef boost::intrusive::slist_member_hook<
         boost::intrusive::link_mode<boost::intrusive::safe_link> >

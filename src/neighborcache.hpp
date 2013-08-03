@@ -2,6 +2,7 @@
 #define NEIGHBORCACHE_HPP
 
 #include "buffer.hpp"
+#include "linklayeraddress.hpp"
 #include "networkaddress.hpp"
 
 //#include <boost/container/static_vector.hpp>
@@ -15,15 +16,6 @@ class NetworkInterface;
 //! A collection of neighbor data.
 class NeighborInfo
 {
-    typedef boost::intrusive::member_hook<
-            Buffer,
-            Buffer::slist_hook_t,
-            &Buffer::m_slistHook> list_options;
-    typedef boost::intrusive::slist<
-            Buffer,
-            list_options,
-            boost::intrusive::cache_last<true> > BufferList;
-
 public:
     enum State
     {
@@ -41,7 +33,7 @@ public:
 
     NeighborInfo(HostAddress address, NetworkInterface* ifc)
         : m_hostAddress(address),
-          interface(ifc),
+          m_interface(ifc),
           m_state(Incomplete)
     {
     }
@@ -49,6 +41,11 @@ public:
     HostAddress address() const
     {
         return m_hostAddress;
+    }
+
+    NetworkInterface* interface() const
+    {
+        return m_interface;
     }
 
     BufferList& sendQueue()
@@ -63,11 +60,11 @@ public:
         return m_state;
     }
 
-    NetworkInterface* interface;
     LinkLayerAddress linkLayerAddress;
 
 private:
     HostAddress m_hostAddress;
+    NetworkInterface* m_interface;
     State m_state;
     BufferList m_sendQueue;
 };
@@ -85,7 +82,7 @@ public:
 
 private:
     typedef std::map<HostAddress, const NeighborInfo*> AddressToHopInfoMap;
-    typedef std::list<NeighborInfo> NeighborCacheVector;
+    typedef std::list<NeighborInfo*> NeighborCacheVector;
 
     AddressToHopInfoMap m_destinationCache;  // TODO: use a sorted list
     NeighborCacheVector m_neighborCache; // TODO: use a boost::static_vector

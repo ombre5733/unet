@@ -7,13 +7,23 @@ Buffer::Buffer()
     : m_interface(0)
 {
     m_data.resize(256, 0);
-    m_begin = m_data.data() + 32;
-    m_end = m_begin;
+    m_begin = m_dataBegin = m_end = m_data.data() + 32;
 }
 
-void Buffer::push_back(const uint8_t *data, uint16_t size)
+void Buffer::clear()
 {
-    assert(m_begin + size <= m_data.data() + m_data.size());
+    m_begin = m_dataBegin = m_end = m_data.data() + 32;
+}
+
+void Buffer::pop_back(uint16_t size)
+{
+    assert(m_dataBegin + size <= m_end);
+    m_end -= size;
+}
+
+void Buffer::push_back(const uint8_t* data, uint16_t size)
+{
+    assert(m_end + size <= m_data.data() + m_data.size());
     memcpy(m_end, data, size);
     m_end += size;
 }
