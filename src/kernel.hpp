@@ -93,14 +93,48 @@ public:
     void onNcpNeighborAdvertisment(Buffer &packet)
     {
         std::cout << "Kernel - Received NCP neighbor advertisment" << std::endl;
+
+        const NeighborAdvertisment* advertisment
+                = packet.data_cast<const NeighborAdvertisment*>();
+        if (!advertisment)
+            return;
+        HostAddress targetAddress = advertisment->targetAddress;
+
+        Neighbor* info = m_nextHopCache.lookupNeighbor(targetAddress);
+        if (!info)
+            return;
+
+        //! \todo check advertisment->solicitated
+
+
+        NcpOption::TargetLinkLayerAddress* targetLlaOption
+                = NcpOption::find<NcpOption::TargetLinkLayerAddress>(
+                      packet.dataBegin() + sizeof(NeighborAdvertisment),
+                      packet.dataEnd());
+        if (targetLlaOption)
+        {
+            std::cout << "Kernel - Target LLA = " << targetLlaOption->linkLayerAddress.address << std::endl;
+            info->linkLayerAddress() = targetLlaOption->linkLayerAddress;
+        }
+
+        while (!info->sendQueue().empty())
+        {
+            Buffer& b = info->sendQueue().front();
+            info->sendQueue().pop_front();
+            info->interface()->send(info->linkLayerAddress(), b);
+        }
     }
 
-    void onNcpNeighborSolicitation(const NeighborSolicitation* solicitation,
-                                   Buffer& packet)
+    void onNcpNeighborSolicitation(Buffer& packet)
     {
         std::cout << "Kernel - Received NCP neighbor solicitation" << std::endl;
 
-        NeighborSolicitation sol = *solicitation;
+        const NeighborSolicitation* solicitation
+                = packet.data_cast<const NeighborSolicitation*>();
+        if (!solicitation)
+            return;
+        HostAddress targetAddress = solicitation->targetAddress;
+
         NcpOption::SourceLinkLayerAddress* srcLlaOption
                 = NcpOption::find<NcpOption::SourceLinkLayerAddress>(
                       packet.dataBegin() + sizeof(NeighborSolicitation),
@@ -115,7 +149,7 @@ public:
         std::cout << "Kernel - Send neighbor advertisment" << std::endl;
 
         NetworkControlProtocolMessageBuilder builder(packet);
-        builder.createNeighborAdvertisment(sol.targetAddress);
+        builder.createNeighborAdvertisment(targetAddress, true);
         builder.addTargetLinkLayerAddressOption(
                     packet.interface()->linkLayerAddress());
 

@@ -1,27 +1,82 @@
 #include "neighborcache.hpp"
 
-void NeighborInfo::setState(State state)
+void Neighbor::setState(State state)
 {
     m_state = state;
 }
 
+#if 0
+void Neighbor::handleAdvertisment(
+        LinkLayerAddress linkLayerAddress, bool solicited)
+{
+    bool override = false;
 
-NeighborInfo* NextHopCache::createNeighborCacheEntry(
+    if (solicited)
+    {
+        // The neighbor advertisment has been solicited.
+        if (state == Incomplete)
+        {
+            // Don't care about the override flag as we do not have a
+            // link-layer address, yet. Just record the link-layer address
+            // and send the queued packets.
+            setLinkLayerAddress(linkLayerAddress);
+            setState(Reachable);
+            process.sendQueue();
+        }
+        else if (override)
+        {
+            // The advertisment overrides our cached link-layer address.
+            setLinkLayerAddress(linkLayerAddress);
+            setState(Reachable);
+        }
+        else
+        {
+            // The advertisment does not override our cached address.
+            if (linkLayerAddress == this->linkLayerAddress()())
+                setState(Reachable);
+            else
+            {
+                // The new address is different from the cached address.
+                if (state == Reachable)
+                    setState(Stale);
+            }
+        }
+    }
+    else
+    {
+        // The neighbor advertisment has not been solicited.
+        if (state == Incomplete)
+        {
+            setLinkLayerAddress(linkLayerAddress);
+            setState(Stale);
+            process.sendQueue();
+        }
+        else if (override && linkLayerAddress != this->linkLayerAddress()())
+        {
+            // The advertisment overrides our cached link-layer address.
+            setLinkLayerAddress(linkLayerAddress);
+            setState(Stale);
+        }
+    }
+}
+#endif
+
+Neighbor* NextHopCache::createNeighborCacheEntry(
         HostAddress address, NetworkInterface *interface)
 {
-    m_neighborCache.push_back(new NeighborInfo(address, interface));
+    m_neighborCache.push_back(new Neighbor(address, interface));
     return m_neighborCache.back();
 }
 
-NeighborInfo* NextHopCache::lookupDestination(HostAddress address) const
+Neighbor* NextHopCache::lookupDestination(HostAddress address) const
 {
     AddressToHopInfoMap::const_iterator iter = m_destinationCache.find(address);
     if (iter != m_destinationCache.end())
-        return const_cast<NeighborInfo*>(iter->second);
+        return const_cast<Neighbor*>(iter->second);
     return 0;
 }
 
-NeighborInfo* NextHopCache::lookupNeighbor(HostAddress address) const
+Neighbor* NextHopCache::lookupNeighbor(HostAddress address) const
 {
     for (NeighborCacheVector::const_iterator iter = m_neighborCache.begin(),
                                          end_iter = m_neighborCache.end();
@@ -29,55 +84,4 @@ NeighborInfo* NextHopCache::lookupNeighbor(HostAddress address) const
         if ((*iter)->address() == address)
             return *iter;
     return 0;
-}
-
-
-#if 0
-void NeighborCache::cache(HostAddress address, NetworkInterface *interface,
-                          const LinkLayerAddress &linkLayerAddress)
-{
-    m_addressToInterfaceInfo[address] = Entry(interface, linkLayerAddress);
-}
-
-const NeighborInfo* NextHopCache::lookup(HostAddress address) const
-{
-    AddressToHopInfoMap::const_iterator iter
-            = m_neighborCache.find(address);
-    if (iter != m_neighborCache.end())
-        return iter->second;
-    else
-        return 0;
-}
-
-NeighborInfo *NextHopCache::lookupNeighbor(HostAddress address) const
-{
-    AddressToHopInfoMap::const_iterator iter
-            = m_neighborCache.find(address);
-    if (iter != m_neighborCache.end())
-        return iter->second;
-    else
-        return 0;
-}
-#endif
-
-
-
-
-
-
-
-void NeighborCache::cache(HostAddress address, NetworkInterface *interface,
-                          const LinkLayerAddress &linkLayerAddress)
-{
-    m_addressToInterfaceInfo[address] = Entry(interface, linkLayerAddress);
-}
-
-const NeighborCache::Entry* NeighborCache::lookup(HostAddress address) const
-{
-    AddressToInterfaceInfoMap::const_iterator iter
-            = m_addressToInterfaceInfo.find(address);
-    if (iter != m_addressToInterfaceInfo.end())
-        return &iter->second;
-    else
-        return 0;
 }

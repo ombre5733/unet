@@ -32,11 +32,15 @@ public:
     uint16_t capacity() const;
 
     template <typename TypeT>
-    TypeT* cast_data()
+    TypeT data_cast()
     {
-        //! \todo
-        //assert(alignof(*TypeT) passt zu m_dataBegin);
-        return reinterpret_cast<TypeT*>(m_dataBegin);
+        if (dataSize() >= sizeof(typename std::remove_pointer<TypeT>::type))
+        {
+            //! \todo assert(alignof(*TypeT) passt zu m_dataBegin);
+            return reinterpret_cast<TypeT>(m_dataBegin);
+        }
+        else
+            return 0;
     }
 
     void clear();

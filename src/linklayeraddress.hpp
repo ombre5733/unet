@@ -5,6 +5,11 @@
 
 struct LinkLayerAddress
 {
+    LinkLayerAddress()
+        : address(0)
+    {
+    }
+
     uint32_t address;
 };
 

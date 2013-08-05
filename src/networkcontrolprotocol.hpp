@@ -81,13 +81,15 @@ struct NeighborAdvertisment
 {
     NeighborAdvertisment()
         : header(2),
+          solicited(false),
           reserved(0)
     {
     }
 
     NetworkControlProtocolHeader header;
     uint16_t targetAddress;
-    uint16_t reserved;
+    bool solicited : 1;
+    uint16_t reserved : 15;
 };
 
 struct NetworkControlProtocolOption
@@ -165,10 +167,12 @@ public:
     {
     }
 
-    void createNeighborAdvertisment(HostAddress targetAddress)
+    void createNeighborAdvertisment(HostAddress targetAddress,
+                                    bool solicitated = false)
     {
         NeighborAdvertisment advertisment;
         advertisment.targetAddress = targetAddress;
+        advertisment.solicited = solicitated;
         m_buffer.push_back((uint8_t*)&advertisment, sizeof(advertisment));
     }
 
@@ -239,9 +243,7 @@ public:
         switch (header->type)
         {
             case 1:
-                derived()->onNcpNeighborSolicitation(
-                            reinterpret_cast<const NeighborSolicitation*>(packet.dataBegin()),
-                            packet);
+                derived()->onNcpNeighborSolicitation(packet);
                 break;
             case 2:
                 derived()->onNcpNeighborAdvertisment(packet);
@@ -252,7 +254,7 @@ public:
         }
     }
 
-    void onNcpNeighborSolicitation(const NeighborSolicitation*, Buffer&)
+    void onNcpNeighborSolicitation(Buffer&)
     {
         std::cout << "NCP - Received neighbor solicitation" << std::endl;
     }

@@ -68,6 +68,11 @@ public:
     //! Returns the domain to which the interface is connected.
     Domain domain() const;
 
+    //! Checks if the link to which this interface connects has addresses.
+    //! Returns \p true, if the link to which this interface connects has
+    //! addresses.
+    bool linkHasAddresses() const;
+
     //! Returns the kernel to which the network interface belongs.
     Kernel* kernel() const
     {

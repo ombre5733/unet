@@ -14,9 +14,10 @@
 class NetworkInterface;
 
 //! A collection of neighbor data.
-class NeighborInfo
+class Neighbor
 {
 public:
+    //! An enumeration of states of the neighbor.
     enum State
     {
         Incomplete,
@@ -26,12 +27,13 @@ public:
         Probe
     };
 
-    NeighborInfo()
-        : m_state(Incomplete)
+    Neighbor()
+        : m_state(Incomplete),
+          m_numTimeouts(0)
     {
     }
 
-    NeighborInfo(HostAddress address, NetworkInterface* ifc)
+    Neighbor(HostAddress address, NetworkInterface* ifc)
         : m_hostAddress(address),
           m_interface(ifc),
           m_state(Incomplete)
@@ -48,6 +50,11 @@ public:
         return m_interface;
     }
 
+    LinkLayerAddress linkLayerAddress() const
+    {
+        return m_linkLayerAddress;
+    }
+
     BufferList& sendQueue()
     {
         return m_sendQueue;
@@ -60,13 +67,13 @@ public:
         return m_state;
     }
 
-    LinkLayerAddress linkLayerAddress;
-
 private:
     HostAddress m_hostAddress;
     NetworkInterface* m_interface;
+    LinkLayerAddress m_linkLayerAddress;
     State m_state;
     BufferList m_sendQueue;
+    uint8_t m_numTimeouts;
 };
 
 // - lookupDestination() Called from the kernel if it wants to send a
@@ -74,51 +81,18 @@ private:
 class NextHopCache
 {
 public:
-    NeighborInfo* lookupDestination(HostAddress address) const;
-    NeighborInfo* lookupNeighbor(HostAddress address) const;
-    NeighborInfo* createNeighborCacheEntry(HostAddress address,
+    Neighbor* lookupDestination(HostAddress address) const;
+    Neighbor* lookupNeighbor(HostAddress address) const;
+    Neighbor* createNeighborCacheEntry(HostAddress address,
                                            NetworkInterface* interface);
     void removeNeighborCacheEntry();
 
 private:
-    typedef std::map<HostAddress, const NeighborInfo*> AddressToHopInfoMap;
-    typedef std::list<NeighborInfo*> NeighborCacheVector;
+    typedef std::map<HostAddress, const Neighbor*> AddressToHopInfoMap;
+    typedef std::list<Neighbor*> NeighborCacheVector;
 
     AddressToHopInfoMap m_destinationCache;  // TODO: use a sorted list
     NeighborCacheVector m_neighborCache; // TODO: use a boost::static_vector
-};
-
-
-//! A cache for neighboring interfaces.
-//!
-//! The neighbor cache keeps track of the interface which are on-link and
-//! thus directly reachable from this device. Data can be sent to a neighbor
-//! interface without passing a router.
-class NeighborCache
-{
-public:
-    struct Entry
-    {
-        Entry() {}
-
-        Entry(NetworkInterface* ifc, const LinkLayerAddress& lla)
-            : interface(ifc),
-              linkLayerAddress(lla)
-        {
-        }
-
-        NetworkInterface* interface;
-        LinkLayerAddress linkLayerAddress;
-    };
-
-    void cache(HostAddress address, NetworkInterface* interface,
-               const LinkLayerAddress& linkLayerAddress);
-
-    const Entry* lookup(HostAddress address) const;
-
-private:
-    typedef std::map<HostAddress, Entry> AddressToInterfaceInfoMap;
-    AddressToInterfaceInfoMap m_addressToInterfaceInfo;
 };
 
 #endif // NEIGHBORCACHE_HPP

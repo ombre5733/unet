@@ -23,10 +23,10 @@ void Kernel::addToPollingList(NetworkInterface& interface)
 namespace
 {
 
-void sendToNeighbor(NeighborInfo* neighbor, Buffer& packet)
+void sendToNeighbor(Neighbor* neighbor, Buffer& packet)
 {
-    if (neighbor->state() == NeighborInfo::Reachable)
-        neighbor->interface()->send(neighbor->linkLayerAddress, packet);
+    if (neighbor->state() == Neighbor::Reachable)
+        neighbor->interface()->send(neighbor->linkLayerAddress(), packet);
     else
     {
         // TODO: If send queue is too long, remove the packet at
@@ -75,7 +75,7 @@ void Kernel::send(NetworkInterface* sendingInterface, HostAddress destination,
 {
 
     // Perform a look-up in the destination cache.
-    NeighborInfo* nextHopInfo = m_nextHopCache.lookupDestination(destination);
+    Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);
     if (nextHopInfo)
     {
         UnetHeader header;
