@@ -180,8 +180,8 @@ void app2(MemoryBus* bus)
 
 int main()
 {
-    BufferList l1;
-    BufferList l2 = BufferList();
+    BufferQueue l1;
+    BufferQueue l2 = BufferQueue();
     {
         Buffer* b = BufferPool::allocate();
         l1.push_back(*b);

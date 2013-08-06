@@ -85,3 +85,19 @@ Neighbor* NextHopCache::lookupNeighbor(HostAddress address) const
             return *iter;
     return 0;
 }
+
+
+
+
+void TimeoutList::insert(Neighbor &neighbor, uint32_t timeout)
+{
+    if (neighbor.m_timeoutListHook.is_linked())
+        erase(s_iterator_to(neighbor));
+
+    neighbor.m_timeout = timeout;
+    iterator iter = begin();
+    while (iter != end() && iter->m_timeout <= timeout)
+        ++iter;
+
+    base_type::insert(iter, neighbor);
+}

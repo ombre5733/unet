@@ -5,6 +5,8 @@
 #include "linklayeraddress.hpp"
 #include "networkaddress.hpp"
 
+#include <boost/intrusive/list.hpp>
+
 //#include <boost/container/static_vector.hpp>
 
 #include <list>
@@ -55,7 +57,7 @@ public:
         return m_linkLayerAddress;
     }
 
-    BufferList& sendQueue()
+    BufferQueue& sendQueue()
     {
         return m_sendQueue;
     }
@@ -68,12 +70,44 @@ public:
     }
 
 private:
+    //! The logical address used for accessing the neighbor from this device.
     HostAddress m_hostAddress;
+    //! The interface through which this neighbor can be accessed.
     NetworkInterface* m_interface;
+    //! The link-layer address of the neighbor.
     LinkLayerAddress m_linkLayerAddress;
+    //! A list of packets which have been queued for sending.
+    BufferQueue m_sendQueue;
     State m_state;
-    BufferList m_sendQueue;
     uint8_t m_numTimeouts;
+
+    uint32_t m_timeout;
+
+public:
+    typedef boost::intrusive::list_member_hook<
+        boost::intrusive::link_mode<boost::intrusive::safe_link> >
+        timeout_list_hook_t;
+    timeout_list_hook_t m_timeoutListHook;
+
+    friend class TimeoutList;
+};
+
+class TimeoutList : public boost::intrusive::list<
+                               Neighbor,
+                               boost::intrusive::member_hook<
+                                   Neighbor,
+                                   Neighbor::timeout_list_hook_t,
+                                   &Neighbor::m_timeoutListHook> >
+{
+    typedef boost::intrusive::list<
+                Neighbor,
+                boost::intrusive::member_hook<
+                    Neighbor,
+                    Neighbor::timeout_list_hook_t,
+                    &Neighbor::m_timeoutListHook> > base_type;
+
+public:
+    void insert(Neighbor& neighbor, uint32_t timeout);
 };
 
 // - lookupDestination() Called from the kernel if it wants to send a

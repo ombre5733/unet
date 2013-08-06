@@ -1,0 +1,64 @@
+digraph G {
+
+  node [
+    shape = "oval"
+  ]
+
+  None
+
+  Incomplete
+
+  Reachable
+
+  Stale
+
+  Delay
+
+  Probe
+
+  Deleted [ label = "None" ]
+
+  node [
+    shape = "record"
+  ]
+
+  NoneToIncomplete [ label = "create entry\nsend solicitation\nstart retransmit timer" ]
+  None -> NoneToIncomplete [arrowhead=none label="send packet"]
+  NoneToIncomplete -> Incomplete
+
+  IncompleteToIncomplete [ label = "send solicitation\nstart retransmit timer" ]
+  Incomplete -> IncompleteToIncomplete [arrowhead=none label = "< N retransmit timeouts"]
+  IncompleteToIncomplete -> Incomplete
+
+  DeleteEntry [ label = "delete entry" ]
+  DeleteEntry -> Deleted
+  Incomplete -> DeleteEntry [arrowhead=none label = ">=N retransmit timeouts"]
+
+  Incomplete -> Reachable [label = "solicitated advertisment"]
+
+  Stale -> Reachable [label = "upper layer progress"]
+  Delay -> Reachable [label = "upper layer progress"]
+  Probe -> Reachable [label = "upper layer progress"]
+
+  ReachableToReachable [label = "start transmit timer"]
+  Reachable -> ReachableToReachable [arrowhead=none label="send packet"]
+  ReachableToReachable -> Reachable
+
+  Reachable -> Stale [label = "transmit timeout" ]
+
+
+  StaleToDelay [ label = "start delay timer" ]
+  Stale -> StaleToDelay [arrowhead=none label="send packet"]
+  StaleToDelay -> Delay
+
+
+  DelayToProbe [ label = "send solicitation\nstart retransmit timer" ]
+  Delay -> DelayToProbe [arrowhead=none label="delay timeout"]
+  DelayToProbe -> Probe
+
+  ProbeToProbe [ label = "send solicitation\nstart retransmit timer" ]
+  Probe -> ProbeToProbe [arrowhead=none label = "< N retransmit timeouts"]
+  ProbeToProbe -> Probe
+
+  Probe -> DeleteEntry [arrowhead=none label = ">= N retransmit timeouts"]
+}

@@ -12,9 +12,9 @@ TEST(Buffer, Initialization)
     //ASSERT_EQ(false, b.m_slistHook.is_linked());
 }
 
-TEST(BufferList, Alle)
+TEST(BufferQueue, Alle)
 {
-    BufferList l;
+    BufferQueue l;
     Buffer b;
     l.push_back(b);
     l.pop_front();

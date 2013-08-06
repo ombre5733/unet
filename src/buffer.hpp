@@ -120,7 +120,7 @@ typedef boost::intrusive::slist<
             Buffer,
             Buffer::slist_hook_t,
             &Buffer::m_slistHook>,
-        boost::intrusive::cache_last<true> > BufferList;
+        boost::intrusive::cache_last<true> > BufferQueue;
 
 class BufferPool
 {

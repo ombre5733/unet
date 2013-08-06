@@ -173,7 +173,7 @@ private:
     std::vector<NetworkInterface*> m_interfaces; // TODO: use a static_vector
     RoutingTable m_routingTable;
     NextHopCache m_nextHopCache;
-    BufferList m_packetsToSend;
+    BufferQueue m_packetsToSend;
 
     typedef boost::intrusive::member_hook<
             NetworkInterface,
