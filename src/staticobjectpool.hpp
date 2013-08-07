@@ -4,9 +4,12 @@
 // boost::math::static_lcm
 #include <boost/math/common_factor_ct.hpp>
 // boost::simple_segregated_storage
-#include <boost/pool/simple_segregated_storage.hpp>
+//#include <boost/pool/simple_segregated_storage.hpp>
+#include "simple_segregated_storage.hpp"
 // boost::alignment_of
 #include <boost/type_traits/alignment_of.hpp>
+// boost::aligned_storage
+#include <boost/type_traits/aligned_storage.hpp>
 
 template <typename TType, unsigned TNumElem>
 class StaticObjectPool : protected boost::simple_segregated_storage<std::size_t>
@@ -45,7 +48,7 @@ public:
         // - block_size >= chunk_size
         // - Block is properly aligned for an array of object of
         //   size chunk_size and array of void*
-        storage().add_block(m_data, sizeof(m_data), chunk_size);
+        storage().add_block(&m_data, sizeof(m_data), chunk_size);
     }
 
     bool empty() const
@@ -55,19 +58,19 @@ public:
 
     TType* malloc()
     {
-        return static_cast<element_type*>(storage().malloc());
+        if (empty())
+            return 0;
+        else
+            return static_cast<element_type*>(storage().malloc());
     }
 
     void free(element_type* const element)
     {
-        storage.free(element);
+        storage().free(element);
     }
 
 private:
-    //! \todo Here we need to find a built-in type which has min_align alignment
-    typedef uint64_t aligned_t;
-
-    aligned_t m_data[(block_size + sizeof(aligned_t) - 1) / sizeof(aligned_t)];
+    typename ::boost::aligned_storage<block_size, min_align>::type m_data;
 };
 
 #endif // STATICOBJECTPOOL_HPP
