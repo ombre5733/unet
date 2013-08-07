@@ -15,7 +15,8 @@
 
 class NetworkInterface;
 
-//! A collection of neighbor data.
+//! A neighbor on a physical link.
+//! A Neighbor is a device which can be accessed on a physical link.
 class Neighbor
 {
 public:
@@ -52,6 +53,7 @@ public:
         return m_interface;
     }
 
+    //! The link-layer address of the neighbor.
     LinkLayerAddress linkLayerAddress() const
     {
         return m_linkLayerAddress;

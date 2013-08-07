@@ -25,4 +25,5 @@ target_link_libraries(unet ${Boost_LIBRARIES})
 
 add_subdirectory(buffer)
 add_subdirectory(networkaddress)
+add_subdirectory(staticobjectpool)
 add_subdirectory(unetheader)

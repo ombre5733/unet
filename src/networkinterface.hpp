@@ -79,7 +79,10 @@ public:
         return m_kernel;
     }
 
-    //! Returns the link-layer address of this interface.
+    //! Returns the link-layer address.
+    //! Returns the link-layer address which uniquely identifies this interface
+    //! on the physical link. If the link does not have addresses, the method
+    //! should return a default constructed link-layer address.
     LinkLayerAddress linkLayerAddress() const
     {
         return m_linkLayerAddress;
@@ -90,7 +93,8 @@ public:
     virtual std::pair<bool, LinkLayerAddress> neighborLinkLayerAddress(
             HostAddress address) const;
 
-    //! Returns the network address which has been set for this interface.
+    //! Returns the network address.
+    //! Returns the logical address which has been set for this interface
     NetworkAddress networkAddress() const
     {
         return m_networkAddress;
@@ -98,9 +102,17 @@ public:
 
     void setLinkLayerAddress(LinkLayerAddress address);
     void setName(const char* name);
+
+    //! Sets the logical address.
+    //! Sets the logical address of the link to \p addr.
     void setNetworkAddress(const NetworkAddress& addr);
 
-    virtual void send(const LinkLayerAddress& address, Buffer& data) {}
+    //! Sends a packet.
+    //! Sends the packet \p data to another interface on the same link which
+    //! is identified through its link-layer \p address. If the link does
+    //! not have link-layer addresses (because it is a point-to-point
+    //! connection such as e.g. UART), the \p address should be ignored.
+    virtual void send(const LinkLayerAddress& address, Buffer& data) = 0;
 
 private:
     //! The link-layer address of this interface.

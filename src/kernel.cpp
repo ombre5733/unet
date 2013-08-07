@@ -3,7 +3,6 @@
 
 #include <cassert>
 
-
 Kernel::Kernel()
 {
 }
