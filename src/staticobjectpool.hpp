@@ -11,6 +11,10 @@
 // boost::aligned_storage
 #include <boost/type_traits/aligned_storage.hpp>
 
+//! An object pool with static (compile-time) storage.
+//! The StaticObjectPool is a memory pool for up to \p TNumElem objects of
+//! type \p TType. It does not allocate memory from the heap but uses an
+//! array internally.
 template <typename TType, unsigned TNumElem>
 class StaticObjectPool : protected boost::simple_segregated_storage<std::size_t>
 {
@@ -49,6 +53,16 @@ public:
         // - Block is properly aligned for an array of object of
         //   size chunk_size and array of void*
         storage().add_block(&m_data, sizeof(m_data), chunk_size);
+    }
+
+    ~StaticObjectPool()
+    {
+        //! \todo 1. order the free list (insert an order() function into
+        //!          the storage
+        //!       2. traverse the ordered free list - if the 'next'-pointer
+        //!          does not point to the following chunk, the chunk is
+        //!          occupied by a live object whose destructor needs to be
+        //!          called
     }
 
     bool empty() const

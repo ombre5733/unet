@@ -94,6 +94,9 @@ public:
     friend class TimeoutList;
 };
 
+//! A linked-list of neighbor timeouts.
+//! The TimoutList is a linked-list of neighbors in which the neighbors are
+//! sorted by their timeout.
 class TimeoutList : public boost::intrusive::list<
                                Neighbor,
                                boost::intrusive::member_hook<
