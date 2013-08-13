@@ -184,6 +184,8 @@ private:
             network_interface_options,
             boost::intrusive::cache_last<true> > NetworkInterfacePollList;
     NetworkInterfacePollList m_interfacesToPoll;
+
+    void eventLoop();
 };
 
 #endif // KERNEL_HPP

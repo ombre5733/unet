@@ -11,10 +11,24 @@
 // boost::aligned_storage
 #include <boost/type_traits/aligned_storage.hpp>
 
+#include <boost/move/move.hpp>
+
+//! \todo Remove this dependency again
+#include <vector>
+#include <algorithm>
+
+class StaticObjectPoolIterator
+{
+public:
+
+private:
+
+};
+
 //! An object pool with static (compile-time) storage.
 //! The StaticObjectPool is a memory pool for up to \p TNumElem objects of
 //! type \p TType. It does not allocate memory from the heap but uses an
-//! array internally.
+//! internal array.
 template <typename TType, unsigned TNumElem>
 class StaticObjectPool : protected boost::simple_segregated_storage<std::size_t>
 {
@@ -44,6 +58,7 @@ private:
     const storage_t& storage() const { return *this; }
 
 public:
+    //! Creates an object pool.
     StaticObjectPool()
     {
         // simple_segregated_storage requires that
@@ -65,12 +80,19 @@ public:
         //!          called
     }
 
+    //! Checks if the pool is empty.
+    //! Returns \p true, if the pool is empty and no more object can be
+    //! allocated.
     bool empty() const
     {
         return storage().empty();
     }
 
-    TType* malloc()
+    //! Allocates memory for an object.
+    //! Allocates memory for one object and returns a pointer to the allocated
+    //! space. The object is not initialized, i.e. the caller has to invoke the
+    //! constructor using a placement-new.
+    element_type* malloc()
     {
         if (empty())
             return 0;
@@ -78,8 +100,47 @@ public:
             return static_cast<element_type*>(storage().malloc());
     }
 
+    //! Frees a previously allocated storage.
+    //! Frees the memory space \p element which has been previously allocated
+    //! via this object pool. This function does not destroy the element and
+    //! the caller is responsible for calling the destructor, thus.
     void free(element_type* const element)
     {
+        storage().free(element);
+    }
+
+    void construct()
+    {
+        void* mem = this->malloc();
+        element_type* element = new (mem) element_type;
+        return element;
+    }
+
+    template <class T1>
+    void construct(BOOST_FWD_REF(T1) x1)
+    {
+        void* mem = this->malloc();
+        element_type* element = new (mem) element_type(
+                                    boost::forward<T1>(x1));
+        return element;
+    }
+
+    template <class T1, class T2>
+    void construct(BOOST_FWD_REF(T1) x1, BOOST_FWD_REF(T2) x2)
+    {
+        void* mem = this->malloc();
+        element_type* element = new (mem) element_type(
+                                    boost::forward<T1>(x1),
+                                    boost::forward<T2>(x2));
+        return element;
+    }
+
+    //! Destroys an element.
+    //! Destroys the \p element whose memory must have been allocated via
+    //! this object pool.
+    void destroy(element_type* const element)
+    {
+        element->~element();
         storage().free(element);
     }
 

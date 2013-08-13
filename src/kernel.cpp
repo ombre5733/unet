@@ -19,6 +19,14 @@ void Kernel::addToPollingList(NetworkInterface& interface)
     m_interfacesToPoll.push_back(interface);
 }
 
+void Kernel::eventLoop()
+{
+    while (1)
+    {
+
+    }
+}
+
 namespace
 {
 

@@ -15,6 +15,7 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 add_executable(unet
                ../buffer.cpp
+               ../buffer2.cpp
                ../kernel.cpp
                ../neighborcache.cpp
                ../networkaddress.cpp

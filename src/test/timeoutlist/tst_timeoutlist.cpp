@@ -30,7 +30,7 @@ TEST(TimeoutList, OrderedInsert)
     l.clear();
 }
 
-TEST(TimeoutList, Fifo)
+TEST(TimeoutList, FifoProperty)
 {
     TimeoutList l;
 

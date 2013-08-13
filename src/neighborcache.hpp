@@ -4,6 +4,7 @@
 #include "buffer.hpp"
 #include "linklayeraddress.hpp"
 #include "networkaddress.hpp"
+#include "staticobjectpool.hpp"
 
 #include <boost/intrusive/list.hpp>
 
@@ -12,6 +13,8 @@
 #include <list>
 #include <map>
 #include <vector>
+
+const int MAX_NUM_NEIGHBORS = 10;
 
 class NetworkInterface;
 
@@ -131,7 +134,9 @@ private:
     typedef std::list<Neighbor*> NeighborCacheVector;
 
     AddressToHopInfoMap m_destinationCache;  // TODO: use a sorted list
-    NeighborCacheVector m_neighborCache; // TODO: use a boost::static_vector
+    NeighborCacheVector m_neighborCache; // TODO: use a StaticObjectPool
+
+    StaticObjectPool<Neighbor, MAX_NUM_NEIGHBORS> m_neighborPool;
 };
 
 #endif // NEIGHBORCACHE_HPP

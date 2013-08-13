@@ -64,6 +64,8 @@ void Neighbor::handleAdvertisment(
 Neighbor* NextHopCache::createNeighborCacheEntry(
         HostAddress address, NetworkInterface *interface)
 {
+    //m_neighborPool.construct(address, interface);
+
     m_neighborCache.push_back(new Neighbor(address, interface));
     return m_neighborCache.back();
 }
