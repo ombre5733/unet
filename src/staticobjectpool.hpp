@@ -1,6 +1,8 @@
 #ifndef STATICOBJECTPOOL_HPP
 #define STATICOBJECTPOOL_HPP
 
+#include "osl/mutex.hpp"
+
 // boost::math::static_lcm
 #include <boost/math/common_factor_ct.hpp>
 // boost::simple_segregated_storage
@@ -85,13 +87,15 @@ public:
     //! allocated.
     bool empty() const
     {
+        //! \todo: osl::lock_guard<osl::mutex> locker(&m_mutex);
         return storage().empty();
     }
 
     //! Allocates memory for an object.
     //! Allocates memory for one object and returns a pointer to the allocated
     //! space. The object is not initialized, i.e. the caller has to invoke the
-    //! constructor using a placement-new.
+    //! constructor using a placement-new. The method returns a pointer to
+    //! the allocated memory or a null-pointer if no more memory was available.
     element_type* malloc()
     {
         if (empty())
@@ -109,7 +113,11 @@ public:
         storage().free(element);
     }
 
-    void construct()
+    //! Allocates and constructs an object.
+    //! Allocates memory for an object and calls its constructor. The method
+    //! returns a pointer to the newly created object or a null-pointer if no
+    //! memory was available.
+    element_type* construct()
     {
         void* mem = this->malloc();
         element_type* element = new (mem) element_type;
@@ -117,7 +125,7 @@ public:
     }
 
     template <class T1>
-    void construct(BOOST_FWD_REF(T1) x1)
+    element_type* construct(BOOST_FWD_REF(T1) x1)
     {
         void* mem = this->malloc();
         element_type* element = new (mem) element_type(
@@ -126,7 +134,7 @@ public:
     }
 
     template <class T1, class T2>
-    void construct(BOOST_FWD_REF(T1) x1, BOOST_FWD_REF(T2) x2)
+    element_type* construct(BOOST_FWD_REF(T1) x1, BOOST_FWD_REF(T2) x2)
     {
         void* mem = this->malloc();
         element_type* element = new (mem) element_type(
@@ -137,10 +145,10 @@ public:
 
     //! Destroys an element.
     //! Destroys the \p element whose memory must have been allocated via
-    //! this object pool.
+    //! this object pool and whose constructor must have been called.
     void destroy(element_type* const element)
     {
-        element->~element();
+        element->~element_type();
         storage().free(element);
     }
 
