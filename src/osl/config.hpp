@@ -21,7 +21,19 @@
 #ifndef OSL_CONFIG_HPP
 #define OSL_CONFIG_HPP
 
+// ----=====================================================================----
+//     Keil CMSIS
+// ----=====================================================================----
+
 #define OSL_IMPLEMENTATION_CXX11
+#if defined(OSL_IMPLEMENTATION_CXX11)
+#  define CMSIS_SYSTICK_FREQUENCY   100000
+#endif // OSL_IMPLEMENTATION_CXX11
+
+// ----=====================================================================----
+//     C++11
+// ----=====================================================================----
+
 // #define OSL_IMPLEMENTATION_KEIL_CMSIS
 
 #endif // OSL_CONFIG_HPP

@@ -28,6 +28,8 @@
 namespace osl
 {
 
+//! A timer.
+//! A timer allows the execution of a callback after a defined timeout.
 class timer : boost::noncopyable
 {
 public:

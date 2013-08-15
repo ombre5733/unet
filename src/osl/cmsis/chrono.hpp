@@ -18,8 +18,10 @@
 **
 *****************************************************************************/
 
-#ifndef CMSIS_CHRONO_HPP
-#define CMSIS_CHRONO_HPP
+#ifndef OSL_CMSIS_CHRONO_HPP
+#define OSL_CMSIS_CHRONO_HPP
+
+#include "cmsis_os.h"
 
 #include <boost/ratio.hpp>
 
@@ -38,22 +40,22 @@ using boost::milli;
 //     duration_values
 // ----=====================================================================----
 
-template <class Rep>
+template <class RepT>
 struct duration_values
 {
-    static BOOST_CONSTEXPR Rep zero()
+    static BOOST_CONSTEXPR RepT zero()
     {
-        return Rep(0);
+        return RepT(0);
     }
 
-    static BOOST_CONSTEXPR Rep min()
+    static BOOST_CONSTEXPR RepT min()
     {
-        return std::numeric_limits<Rep>::lowest();
+        return std::numeric_limits<RepT>::lowest();
     }
 
-    static BOOST_CONSTEXPR int32_t max()
+    static BOOST_CONSTEXPR RepT max()
     {
-        return std::numeric_limits<Rep>::max();
+        return std::numeric_limits<RepT>::max();
     }
 };
 
@@ -61,20 +63,24 @@ struct duration_values
 //     treat_as_floating_point
 // ----=====================================================================----
 
-//template <class Rep>
-//struct treat_as_floating_point : std::is_floating_point<Rep> {};
+//template <class RepT>
+//struct treat_as_floating_point : std::is_floating_point<RepT> {};
 
 // ----=====================================================================----
 //     duration
 // ----=====================================================================----
 
-template <typename Rep, typename Period>
+//! A duration of time.
+//! A duration measures an amount of time. It is defined by a number of ticks
+//! and a period which is the time between two ticks in seconds.
+template <typename RepT, typename PeriodT>
 class duration
 {
 public:
-    typedef Rep rep;
-    typedef Period period;
+    typedef RepT rep;
+    typedef PeriodT period;
 
+    //! Creates a duration of zero periods.
     BOOST_CONSTEXPR duration() /*= default*/
     {
         m_count = duration_values<rep>::zero();
@@ -92,6 +98,7 @@ public:
         m_count = count;
     }
 
+    //! Returns the number of ticks.
     BOOST_CONSTEXPR rep count() const
     {
         return m_count;
@@ -122,12 +129,13 @@ typedef duration<int32_t, milli> milliseconds;
 //     time_point
 // ----=====================================================================----
 
-template <typename Clock, typename Duration = typename Clock::duration>
+//! A time point.
+template <typename ClockT, typename DurationT = typename ClockT::duration>
 class time_point
 {
 public:
-    typedef Clock clock;
-    typedef Duration duration;
+    typedef ClockT clock;
+    typedef DurationT duration;
     typedef typename duration::rep rep;
     typedef typename duration::period period;
 
@@ -135,14 +143,24 @@ public:
     {
     }
 
-    BOOST_CONSTEXPR explicit time_point(const duration& duration)
-        : m_duration(duration)
+    BOOST_CONSTEXPR explicit time_point(const duration& d)
+        : m_duration(d)
     {
     }
 
     duration time_since_epoch() const
     {
         return m_duration;
+    }
+
+    static BOOST_CONSTEXPR time_point max()
+    {
+        return time_point(duration::max());
+    }
+
+    static BOOST_CONSTEXPR time_point min()
+    {
+        return time_point(duration::min());
     }
 
 private:
@@ -153,24 +171,24 @@ private:
 //     high_resolution_clock
 // ----=====================================================================----
 
+//! The high-resolution clock.
+//! This class provides access to the system's high-resolution clock.
 class high_resolution_clock
 {
     typedef int32_t rep;
-    typedef ratio<1, 100000/* SHOULD BE: osKernelSysTickFrequency*/> period;
+    typedef ratio<1, CMSIS_SYSTICK_FREQUENCY> period;
     typedef chrono::duration<rep, period> duration;
     typedef chrono::time_point<high_resolution_clock> time_point;
 
     static BOOST_CONSTEXPR_OR_CONST bool is_steady = false;
 
-    /*
     static time_point now()
     {
-        return osKernelSysTick();
+        return time_point(duration(osKernelSysTick()));
     }
-    */
 };
 
 } // namespace chrono
 } // namespace osl
 
-#endif // CMSIS_CHRONO_HPP
+#endif // OSL_CMSIS_CHRONO_HPP

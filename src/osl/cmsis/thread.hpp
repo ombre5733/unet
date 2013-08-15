@@ -18,8 +18,8 @@
 **
 *****************************************************************************/
 
-#ifndef CMSIS_THREAD_HPP
-#define CMSIS_THREAD_HPP
+#ifndef OSL_CMSIS_THREAD_HPP
+#define OSL_CMSIS_THREAD_HPP
 
 #include "chrono.hpp"
 
@@ -89,6 +89,12 @@ class thread : boost::noncopyable //! \todo Or must it be copyable?
         //! \todo Check if the thread is still running. If so, call
         //! std::terminate(). The C++11 standard does not allow to invoke
         //! the destructor when the thread is joinable()
+    }
+
+    //! Returns the id of the thread.
+    id get_id() const BOOST_NOEXCEPT
+    {
+        return m_id;
     }
 
     //! Returns the number of threads which can run concurrently on this
@@ -190,4 +196,4 @@ void yield()
 
 } // namespace osl
 
-#endif // CMSIS_THREAD_HPP
+#endif // OSL_CMSIS_THREAD_HPP

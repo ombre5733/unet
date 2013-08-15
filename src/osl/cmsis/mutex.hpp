@@ -211,9 +211,10 @@ public:
     }
 
     //! Releases the mutex without unlocking.
-    //! Releases this lock from its associated mutex. The mutex is not unlocked
-    //! but the caller is responsible for unlocking it. The method returns
-    //! a pointer to the associated mutex.
+    //! Breaks the association of this lock and its mutex (which is returned
+    //! by this function). The lock won't interact with the mutex any longer
+    //! (it won't even unlock the mutex). Instead the responsibility is
+    //! transfered to the caller.
     mutex_type* release() BOOST_NOEXCEPT
     {
         mutex_type* m = m_mutex;

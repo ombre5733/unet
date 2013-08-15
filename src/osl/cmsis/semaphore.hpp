@@ -23,12 +23,15 @@
 
 #include "cmsis_os.h"
 
+#include <boost/utility.hpp>
+
 class semaphore : boost::noncopyable
 {
 public:
-    explicit semaphore(int32_t count = 0)
+    explicit semaphore(uint32_t count = 0)
         : m_id(0)
     {
+        assert(count < osFeature_Semaphore);
         osSemaphoreDef_t semaphoreDef = { m_cmsisSemaphoreControlBlock };
         m_id = osSemaphoreCreate(&osSemaphoreDef, count);
     }
