@@ -18,17 +18,17 @@
 **
 *****************************************************************************/
 
-#ifndef OSL_MUTEX_HPP
-#define OSL_MUTEX_HPP
+#ifndef OSL_THREAD_HPP
+#define OSL_THREAD_HPP
 
 #include "config.hpp"
 
 #if defined(OSL_IMPLEMENTATION_CXX11)
-#  include "cxx11/mutex.hpp"
+#  include "cxx11/thread.hpp"
 #elif defined(OSL_IMPLEMENTATION_CMSIS)
-#  include "cmsis/mutex.hpp"
+#  include "cmsis/thread.hpp"
 #else
 #  error "No known implementation for the OS layer."
 #endif
 
-#endif // OSL_MUTEX_HPP
+#endif // OSL_THREAD_HPP

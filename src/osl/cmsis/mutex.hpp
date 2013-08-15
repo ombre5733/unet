@@ -18,8 +18,8 @@
 **
 *****************************************************************************/
 
-#ifndef CMSIS_MUTEX_HPP
-#define CMSIS_MUTEX_HPP
+#ifndef OSL_CMSIS_MUTEX_HPP
+#define OSL_CMSIS_MUTEX_HPP
 
 #include <boost/assert.hpp>
 #include <boost/config.hpp>
@@ -142,4 +142,4 @@ private:
 
 } // namespace osl
 
-#endif // CMSIS_MUTEX_HPP
+#endif // OSL_CMSIS_MUTEX_HPP

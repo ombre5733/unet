@@ -18,17 +18,32 @@
 **
 *****************************************************************************/
 
-#ifndef OSL_MUTEX_HPP
-#define OSL_MUTEX_HPP
+#ifndef OSL_NULLMUTEX_HPP
+#define OSL_NULLMUTEX_HPP
 
-#include "config.hpp"
+#include <boost/utility.hpp>
 
-#if defined(OSL_IMPLEMENTATION_CXX11)
-#  include "cxx11/mutex.hpp"
-#elif defined(OSL_IMPLEMENTATION_CMSIS)
-#  include "cmsis/mutex.hpp"
-#else
-#  error "No known implementation for the OS layer."
-#endif
+namespace osl
+{
 
-#endif // OSL_MUTEX_HPP
+//! A null-mutex.
+//! The null-mutex is a class which implements the BasicLockable concept but
+//! does not block a thread. It can be used as a stub for a mutex in
+//! single-threaded applications.
+class null_mutex: boost::noncopyable
+{
+public:
+    //! Locks the null-mutex.
+    static void lock()
+    {
+    }
+
+    //! Unlocks the null-mutex.
+    static void unlock()
+    {
+    }
+};
+
+} // namespace osl
+
+#endif // OSL_NULLMUTEX_HPP

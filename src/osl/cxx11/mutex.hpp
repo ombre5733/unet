@@ -18,17 +18,14 @@
 **
 *****************************************************************************/
 
-#ifndef OSL_MUTEX_HPP
-#define OSL_MUTEX_HPP
+#ifndef OSL_CXX11_MUTEX_HPP
+#define OSL_CXX11_MUTEX_HPP
 
-#include "config.hpp"
+#include <mutex>
 
-#if defined(OSL_IMPLEMENTATION_CXX11)
-#  include "cxx11/mutex.hpp"
-#elif defined(OSL_IMPLEMENTATION_CMSIS)
-#  include "cmsis/mutex.hpp"
-#else
-#  error "No known implementation for the OS layer."
-#endif
+namespace osl
+{
+using std::mutex;
+} // namespace osl
 
-#endif // OSL_MUTEX_HPP
+#endif // OSL_CXX11_MUTEX_HPP
