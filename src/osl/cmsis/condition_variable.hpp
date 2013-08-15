@@ -18,10 +18,28 @@
 **
 *****************************************************************************/
 
-#ifndef OSL_CONFIG_HPP
-#define OSL_CONFIG_HPP
+#ifndef OSL_CMSIS_CONDITIONVARIABLE_HPP
+#define OSL_CMSIS_CONDITIONVARIABLE_HPP
 
-#define OSL_IMPLEMENTATION_CXX11
-// #define OSL_IMPLEMENTATION_KEIL_CMSIS
+#include "mutex.hpp"
 
-#endif // OSL_CONFIG_HPP
+#include <boost/utility.hpp>
+
+namespace osl
+{
+
+class condition_variable : boost::noncopyable
+{
+public:
+    condition_variable();
+
+    ~condition_variable();
+
+    void notify_one() BOOST_NOEXCEPT;
+
+    void wait(unique_lock<mutex>& lock);
+};
+
+} // namespace osl
+
+#endif // OSL_CMSIS_CONDITIONVARIABLE_HPP

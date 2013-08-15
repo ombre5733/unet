@@ -25,10 +25,10 @@
 
 #if defined(OSL_IMPLEMENTATION_CXX11)
 #  include "cxx11/thread.hpp"
-#elif defined(OSL_IMPLEMENTATION_CMSIS)
+#elif defined(OSL_IMPLEMENTATION_KEIL_CMSIS)
 #  include "cmsis/thread.hpp"
 #else
-#  error "No known implementation for the OS layer."
+#  error "The OS layer has not been configured."
 #endif
 
 #endif // OSL_THREAD_HPP

@@ -25,10 +25,10 @@
 
 #if defined(OSL_IMPLEMENTATION_CXX11)
 #  include "cxx11/mutex.hpp"
-#elif defined(OSL_IMPLEMENTATION_CMSIS)
+#elif defined(OSL_IMPLEMENTATION_KEIL_CMSIS)
 #  include "cmsis/mutex.hpp"
 #else
-#  error "No known implementation for the OS layer."
+#  error "The OS layer has not been configured."
 #endif
 
 #endif // OSL_MUTEX_HPP

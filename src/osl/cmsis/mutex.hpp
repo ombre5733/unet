@@ -21,6 +21,8 @@
 #ifndef OSL_CMSIS_MUTEX_HPP
 #define OSL_CMSIS_MUTEX_HPP
 
+#include "cmsis_os.h"
+
 #include <boost/assert.hpp>
 #include <boost/config.hpp>
 #include <boost/throw_exception.hpp>
@@ -29,16 +31,32 @@
 namespace osl
 {
 
+struct defer_lock_t {};
+struct try_to_lock_t {};
+struct adopt_lock_t {};
+
+BOOST_CONSTEXPR_OR_CONST defer_lock_t defer_lock = defer_lock_t();
+BOOST_CONSTEXPR_OR_CONST defer_lock_t try_to_lock = try_to_lock_t();
+BOOST_CONSTEXPR_OR_CONST defer_lock_t adopt_lock = adopt_lock_t();
+
 //! A recursive mutex with support for timeout.
 class recursive_timed_mutex : boost::noncopyable
 {
 public:
     //! Creates a recursive mutex with support for timeout.
     recursive_timed_mutex()
+        : m_id(0)
     {
-        m_id = osMutexCreate(osMutex(m_mutexDef));
+        osMutexDef_t mutexDef = { m_cmsisMutexControlBlock };
+        m_id = osMutexCreate(&mutexDef);
         if (m_id == 0)
-            throw ::boost::throw_exception(std::system_error());
+            ::boost::throw_exception(std::system_error());
+    }
+
+    ~recursive_timed_mutex()
+    {
+        if (m_id)
+            osMutexDelete(m_id);
     }
 
     //! Locks the mutex.
@@ -49,13 +67,13 @@ public:
     {
         osStatus status = osMutexWait(m_id, osWaitForever);
         if (status != osOK)
-            throw ::boost::throw_exception(std::system_error());
+            ::boost::throw_exception(std::system_error());
     }
 
     //! Tests and locks the mutex if it is available.
     //! If this mutex is available, it is locked by the calling thread and
     //! \p true is returned. If the mutex is already locked, the method
-    //! returns without blocking with a value of \p false.
+    //! returns \p false without blocking.
     bool try_lock()
     {
         osStatus status = osMutexWait(m_id, 0);
@@ -73,18 +91,16 @@ public:
     void unlock()
     {
         osStatus status = osMutexRelease(m_id);
-        if (status != osOK)
-            throw -1; // or don't throw --> this could be called from a destructor?
+        // Just check the return code but do not throw because unlock is
+        // called from the destructor of lock_guard, for example.
+        //! \todo I think, we can throw exceptions, too.
+        BOOST_ASSERT(status == osOK);
     }
 
 private:
-    osMutexDef(m_mutexDef);
+    uint32_t m_cmsisMutexControlBlock[3];
     osMutexId m_id;
 };
-
-struct defer_lock_t {};
-struct try_to_lock_t {};
-struct adopt_lock_t {};
 
 //! A lock guard for RAII-style mutex locking.
 template <class Mutex>
@@ -106,7 +122,7 @@ public:
     //! the calling thread must have locked the mutex before creating the
     //! guard.
     //! The guard will still unlock the mutex when it goes out of scope.
-    lock_guard(mutex_type& mutex, adopt_lock_t adopt_tag)
+    lock_guard(mutex_type& mutex, adopt_lock_t /*tag*/)
         : m_mutex(mutex)
     {
     }
@@ -129,15 +145,95 @@ class unique_lock
 public:
     typedef Mutex mutex_type;
 
-    unique_lock();
-    explicit unique_lock(mutex_type& mutex);
+    unique_lock() BOOST_NOEXCEPT
+        : m_mutex(0),
+          m_locked(false)
+    {
+    }
 
-    ~unique_lock();
+    //! Creates a unique lock with locking.
+    //! Creates a unique lock tied to the \p mutex and locks it.
+    explicit unique_lock(mutex_type& mutex)
+        : m_mutex(&mutex),
+          m_locked(false)
+    {
+        mutex.lock();
+        m_locked = true;
+    }
 
-    bool owns_lock() const;
+    //! Creates a unique lock without locking.
+    //! Creates a unique lock which will be tied to the given \p mutex but
+    //! does not lock this mutex.
+    unique_lock(mutex_type& mutex, defer_lock_t /*tag*/) BOOST_NOEXCEPT
+        : m_mutex(&mutex),
+          m_locked(false)
+    {
+    }
+
+    unique_lock(mutex_type& mutex, try_to_lock_t /*tag*/)
+        : m_mutex(&mutex),
+          m_locked(false)
+    {
+        m_locked = mutex.try_lock();
+    }
+
+    unique_lock(mutex_type& mutex, adopt_lock_t /*tag*/)
+        : m_mutex(&mutex),
+          m_locked(true)
+    {
+    }
+
+    //! \todo Timed constructors are missing
+
+    //! Destroys the unique lock.
+    //! If the lock has an associated mutex and has locked this mutex, the
+    //! mutex is unlocked.
+    ~unique_lock()
+    {
+        if (m_mutex && m_locked)
+            m_mutex.unlock();
+    }
+
+    //! Returns a pointer to the associated mutex.
+    //! Returns a pointer to the mutex to which this lock is tied. This may
+    //! be a null-pointer, if no mutex has been supplied so far.
+    mutex_type* mutex() const BOOST_NOEXCEPT
+    {
+        return m_mutex;
+    }
+
+    //! Checks if this lock owns a locked mutex.
+    //! Returns \p true, if a mutex is tied to this lock and the lock has
+    //! ownership of it.
+    bool owns_lock() const
+    {
+        return m_mutex && m_locked;
+    }
+
+    //! Releases the mutex without unlocking.
+    //! Releases this lock from its associated mutex. The mutex is not unlocked
+    //! but the caller is responsible for unlocking it. The method returns
+    //! a pointer to the associated mutex.
+    mutex_type* release() BOOST_NOEXCEPT
+    {
+        mutex_type* m = m_mutex;
+        m_mutex = 0;
+        m_locked = false;
+        return m;
+    }
+
+    //! Unlocks the associated mutex.
+    bool unlock()
+    {
+        if (!m_mutex || !m_locked)
+            ::boost::throw_exception(std::system_error);
+        m_mutex->unlock();
+        m_locked = false;
+    }
 
 private:
-    mutex_type& m_mutex;
+    mutex_type* m_mutex;
+    bool m_locked;
 };
 
 } // namespace osl

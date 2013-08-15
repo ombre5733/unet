@@ -18,10 +18,17 @@
 **
 *****************************************************************************/
 
-#ifndef OSL_CONFIG_HPP
-#define OSL_CONFIG_HPP
+#ifndef OSL_TIMER_HPP
+#define OSL_TIMER_HPP
 
-#define OSL_IMPLEMENTATION_CXX11
-// #define OSL_IMPLEMENTATION_KEIL_CMSIS
+#include "config.hpp"
 
-#endif // OSL_CONFIG_HPP
+#if defined(OSL_IMPLEMENTATION_CXX11)
+#  error "Not implemented, yet."
+#elif defined(OSL_IMPLEMENTATION_KEIL_CMSIS)
+#  include "cmsis/timer.hpp"
+#else
+#  error "The OS layer has not been configured."
+#endif
+
+#endif // OSL_TIMER_HPP

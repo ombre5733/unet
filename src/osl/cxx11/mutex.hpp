@@ -26,6 +26,7 @@
 namespace osl
 {
 using std::mutex;
+using std::recursive_timed_mutex;
 } // namespace osl
 
 #endif // OSL_CXX11_MUTEX_HPP

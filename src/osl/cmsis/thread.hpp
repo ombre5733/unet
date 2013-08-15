@@ -23,14 +23,15 @@
 
 #include "chrono.hpp"
 
-#include "cmsis.h"
+#include "cmsis_os.h"
 
 #include <boost/config.hpp>
+#include <boost/utility.hpp>
 
 namespace osl
 {
 
-class thread
+class thread : boost::noncopyable //! \todo Or must it be copyable?
 {
     //! A representation of a thread identifier.
     class id
@@ -77,13 +78,18 @@ class thread
     {
     }
 
-    thread(void (*fun)(const void*), void* arg)
+    thread(void (*fun)(void*), void* arg)
     {
         osThreadDef_t threadDefinition = { fun, DEFAULT_PRIORITY, 0, 0 };
         m_id = osThreadCreate(&threadDefinition, arg);
     }
 
-    ~thread() {}
+    ~thread()
+    {
+        //! \todo Check if the thread is still running. If so, call
+        //! std::terminate(). The C++11 standard does not allow to invoke
+        //! the destructor when the thread is joinable()
+    }
 
     //! Returns the number of threads which can run concurrently on this
     //! hardware.
@@ -96,31 +102,37 @@ private:
     id m_id;
 };
 
+inline
 bool operator == (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id == rhs.m_id;
 }
 
+inline
 bool operator != (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id != rhs.m_id;
 }
 
+inline
 bool operator < (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id < rhs.m_id;
 }
 
+inline
 bool operator <= (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id <= rhs.m_id;
 }
 
+inline
 bool operator > (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id > rhs.m_id;
 }
 
+inline
 bool operator >= (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id >= rhs.m_id;
@@ -130,6 +142,7 @@ namespace this_thread
 {
 
 //! Returns the id of the current thread.
+inline
 osl::thread::id get_id()
 {
     return osl::thread::id(osThreadGetId());
@@ -165,6 +178,7 @@ template <typename Clock, typename Duration>
 void sleep_until(const osl::chrono::time_point<Clock, Duration>& timePoint) BOOST_NOEXCEPT;
 
 //! Triggers a resceduling of the executing threads.
+inline
 void yield()
 {
     osStatus status = osThreadYield();

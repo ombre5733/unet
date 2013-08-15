@@ -18,10 +18,27 @@
 **
 *****************************************************************************/
 
-#ifndef OSL_CONFIG_HPP
-#define OSL_CONFIG_HPP
+#ifndef OSL_CMSIS_MESSAGEQUEUE_HPP
+#define OSL_CMSIS_MESSAGEQUEUE_HPP
 
-#define OSL_IMPLEMENTATION_CXX11
-// #define OSL_IMPLEMENTATION_KEIL_CMSIS
+template <typename TypeT, unsigned QueueSize>
+class message_queue
+{
+public:
+    typedef TypeT element_type;
 
-#endif // OSL_CONFIG_HPP
+    element_type* alloc();
+
+    void free(element_type* const element);
+
+    void send(element_type* element);
+
+    element_type* receive();
+
+    element_type* try_receive();
+
+    // element_type* try_receive_for();
+    // element_type* try_receive_until();
+};
+
+#endif // OSL_CMSIS_MESSAGEQUEUE_HPP

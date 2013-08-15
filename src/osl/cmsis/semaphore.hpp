@@ -18,10 +18,40 @@
 **
 *****************************************************************************/
 
-#ifndef OSL_CONFIG_HPP
-#define OSL_CONFIG_HPP
+#ifndef OSL_CMSIS_SEMAPHORE_HPP
+#define OSL_CMSIS_SEMAPHORE_HPP
 
-#define OSL_IMPLEMENTATION_CXX11
-// #define OSL_IMPLEMENTATION_KEIL_CMSIS
+#include "cmsis_os.h"
 
-#endif // OSL_CONFIG_HPP
+class semaphore : boost::noncopyable
+{
+public:
+    explicit semaphore(int32_t count = 0)
+        : m_id(0)
+    {
+        osSemaphoreDef_t semaphoreDef = { m_cmsisSemaphoreControlBlock };
+        m_id = osSemaphoreCreate(&osSemaphoreDef, count);
+    }
+
+    ~semaphore()
+    {
+        if (m_id)
+            osSemaphoreDelete(m_id);
+    }
+
+    void wait()
+    {
+        osSemaphoreWait(m_id, osWaitForever);
+    }
+
+    void release()
+    {
+        osSemaphoreRelease(m_id);
+    }
+
+private:
+    uint32_t m_cmsisSemaphoreControlBlock[2];
+    osSemaphoreId m_id;
+};
+
+#endif // OSL_CMSIS_SEMAPHORE_HPP
