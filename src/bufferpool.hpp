@@ -17,10 +17,22 @@ public:
         return m_pool.construct(this);
     }
 
+    //! Checks if the pool is empty.
+    //! Returns \p true if the pool is empty.
+    bool empty() const
+    {
+        return m_pool.empty();
+    }
+
     void release(buffer_type* const buffer)
     {
         std::cout << "BufferPool::release" << std::endl;
         m_pool.destroy(buffer);
+    }
+
+    buffer_type* try_acquire()
+    {
+        return acquire();
     }
 
 protected:
@@ -32,27 +44,6 @@ protected:
 private:
     static const int NUM_BUFFERS = 10;
     StaticObjectPool<buffer_type, NUM_BUFFERS> m_pool;
-};
-
-
-class Buffer2Pool
-{
-public:
-    const BufferHandle& allocate()
-    {
-        BufferHandle* handle = m_bufferHandlePool.malloc();
-        if (!handle)
-            throw -1;
-
-        Buffer2* buffer = m_bufferPool.malloc();
-    }
-
-private:
-    static const int NUM_BUFFERS = 10;
-    static const int NUM_BUFFER_HANDLES = 10;
-
-    StaticObjectPool<Buffer2, NUM_BUFFERS> m_bufferPool;
-    StaticObjectPool<BufferHandle, NUM_BUFFER_HANDLES> m_bufferHandlePool;
 };
 
 #endif // BUFFERPOOL_HPP

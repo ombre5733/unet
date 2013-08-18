@@ -22,18 +22,33 @@
 #define OSL_CONFIG_HPP
 
 // ----=====================================================================----
-//     Keil CMSIS
+//     C++11
 // ----=====================================================================----
 
 #define OSL_IMPLEMENTATION_CXX11
 #if defined(OSL_IMPLEMENTATION_CXX11)
-#  define CMSIS_SYSTICK_FREQUENCY   100000
+
+// The frequency of the high-resolution timer (in Hz).
+#  define OS_CLOCK   12000000
+// The time interval between two sys-ticks (in us).
+#  define OS_TICK    1000
+
 #endif // OSL_IMPLEMENTATION_CXX11
 
 // ----=====================================================================----
-//     C++11
+//     Keil CMSIS
 // ----=====================================================================----
 
 // #define OSL_IMPLEMENTATION_KEIL_CMSIS
+
+// ----=====================================================================----
+//     Private section
+// ----=====================================================================----
+
+#if defined(OS_IMPLEMENTATION_KEIL_CMSIS)
+#  if osCMSIS_RTX != ((4<<16)|70)
+#    error "The Keil CMSIS version must be 4.70."
+#  endif
+#endif
 
 #endif // OSL_CONFIG_HPP

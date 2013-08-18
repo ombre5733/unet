@@ -104,8 +104,10 @@ public:
 class Buffer2
 {
 public:
-    static const int BUFFER_SIZE = 256;
+    static const int BUFFER_SIZE = 256; //! \todo Add this as template parameter?
 
+    //! Creates a buffer.
+    //! Creates a buffer which will be destroyed trough the buffer \p disposer.
     explicit Buffer2(BufferDisposer* disposer)
         : m_disposer(disposer)
     {

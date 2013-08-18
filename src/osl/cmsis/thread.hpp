@@ -34,6 +34,8 @@ namespace osl
 class thread : boost::noncopyable //! \todo Or must it be copyable?
 {
     //! A representation of a thread identifier.
+    //! This class is a wrapper around a thread identifier. It has a small
+    //! memory footprint such that copied can be passed around.
     class id
     {
     public:
@@ -42,12 +44,12 @@ class thread : boost::noncopyable //! \todo Or must it be copyable?
         id(osThreadId _id) : m_id(_id) {}
 
     private:
-        friend bool operator == (id lhs, id rhs);
-        friend bool operator != (id lhs, id rhs);
-        friend bool operator < (id lhs, id rhs);
-        friend bool operator <= (id lhs, id rhs);
-        friend bool operator > (id lhs, id rhs);
-        friend bool operator >= (id lhs, id rhs);
+        friend bool operator== (id lhs, id rhs);
+        friend bool operator!= (id lhs, id rhs);
+        friend bool operator< (id lhs, id rhs);
+        friend bool operator<= (id lhs, id rhs);
+        friend bool operator> (id lhs, id rhs);
+        friend bool operator>= (id lhs, id rhs);
 
         osThreadId m_id;
     };
@@ -80,8 +82,8 @@ class thread : boost::noncopyable //! \todo Or must it be copyable?
 
     thread(void (*fun)(void*), void* arg)
     {
-        osThreadDef_t threadDefinition = { fun, DEFAULT_PRIORITY, 0, 0 };
-        m_id = osThreadCreate(&threadDefinition, arg);
+        osThreadDef_t threadDef = { fun, DEFAULT_PRIORITY, 0, 0 };
+        m_id = osThreadCreate(&threadDef, arg);
     }
 
     ~thread()
@@ -108,38 +110,50 @@ private:
     id m_id;
 };
 
+//! Compares two thread ids for equality.
+//! Returns \p true, if \p lhs and \p rhs are equal.
 inline
-bool operator == (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
+bool operator== (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id == rhs.m_id;
 }
 
+//! Compares two thread ids for inequality.
+//! Returns \p true, if \p lhs and \p rhs are not equal.
 inline
-bool operator != (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
+bool operator!= (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id != rhs.m_id;
 }
 
+//! Less-than comparison for thread ids.
+//! Returns \p true, if \p lhs is less than \p rhs.
 inline
-bool operator < (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
+bool operator< (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id < rhs.m_id;
 }
 
+//! Less-than or equal comparison for thread ids.
+//! Returns \p true, if \p lhs is less than or equal to \p rhs.
 inline
-bool operator <= (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
+bool operator<= (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id <= rhs.m_id;
 }
 
+//! Greater-than comparison for thread ids.
+//! Returns \p true, if \p lhs is greater than \p rhs.
 inline
-bool operator > (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
+bool operator> (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id > rhs.m_id;
 }
 
+//! Greater-than or equal comparison for thread ids.
+//! Returns \p true, if \p lhs is greater than or equal to \p rhs.
 inline
-bool operator >= (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
+bool operator>= (thread::id lhs, thread::id rhs) BOOST_NOEXCEPT
 {
     return lhs.m_id >= rhs.m_id;
 }
@@ -154,36 +168,35 @@ osl::thread::id get_id()
     return osl::thread::id(osThreadGetId());
 }
 
-template <typename Rep, typename Period>
-void sleep_for(const chrono::duration<Rep, Period>& sleep_duration) BOOST_NOEXCEPT;
-
-template <>
-void sleep_for(const chrono::microseconds& sleep_duration) BOOST_NOEXCEPT
+namespace detail
 {
-    typedef chrono::high_resolution_clock::time_point time_point;
-    time_point end = chrono::high_resolution_clock::now()
-                     + sleep_duration;
-    while (chrono::high_resolution_clock::now() < end)
+
+class thread_sleeper
+{
+public:
+    bool operator() (int32_t timeout)
     {
-        // Busy wait.
+        status = osDelay(timeout);
+        OSL_ASSERT(status == osEventTimeout);
     }
-}
+};
+
+} // namespace detail
 
 //! Puts the current thread to sleep.
-//! Blocks the execution of the current thread for the given \p sleep_duration
-//! (in ms).
-template <>
-void sleep_for(const chrono::milliseconds& sleep_duration) BOOST_NOEXCEPT
+//! Blocks the execution of the current thread for the given duration \p d.
+template <typename RepT, typename PeriodT>
+void sleep_for(const chrono::duration<RepT, PeriodT>& d) BOOST_NOEXCEPT
 {
-    osStatus status = osDelay(sleep_duration.count());
-    OSL_ASSERT(status == osEventTimeout);
-    OSL_UNUSED(status);
+    detail::thread_sleeper sleeper;
+    chrono::detail::cmsis_wait<RepT, PeriodT, detail::thread_sleeper>(
+                d, sleeper);
 }
 
-template <typename Clock, typename Duration>
-void sleep_until(const osl::chrono::time_point<Clock, Duration>& timePoint) BOOST_NOEXCEPT;
+template <typename ClockT, typename DurationT>
+void sleep_until(const chrono::time_point<ClockT, DurationT>& timePoint) BOOST_NOEXCEPT;
 
-//! Triggers a resceduling of the executing threads.
+//! Triggers a rescheduling of the executing threads.
 inline
 void yield()
 {

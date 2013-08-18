@@ -28,25 +28,30 @@
 class semaphore : boost::noncopyable
 {
 public:
+    //! Creates a semaphore.
+    //! Creates a semaphore with an initial number of \p count tokens.
     explicit semaphore(uint32_t count = 0)
         : m_id(0)
     {
-        assert(count < osFeature_Semaphore);
+        assert(count <= osFeature_Semaphore);
         osSemaphoreDef_t semaphoreDef = { m_cmsisSemaphoreControlBlock };
-        m_id = osSemaphoreCreate(&osSemaphoreDef, count);
+        m_id = osSemaphoreCreate(&semaphoreDef, count);
     }
 
+    //! Destroys the semaphore.
     ~semaphore()
     {
         if (m_id)
             osSemaphoreDelete(m_id);
     }
 
+    //! Waits until a semaphore token is available.
     void wait()
     {
         osSemaphoreWait(m_id, osWaitForever);
     }
 
+    //! Releases a semaphore token.
     void release()
     {
         osSemaphoreRelease(m_id);

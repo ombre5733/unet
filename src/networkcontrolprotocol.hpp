@@ -6,18 +6,21 @@ Network Control Protocol
 
 All messages start with the following header:
 
+\code
 0                   1                   2                   3
 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |     Type      |     Code      |           Checksum            |
 +---------------+---------------+---------------+---------------+
+\endcode
 
-The Type field encodes the NCP message type. The Code field can be
-used for sub-typing and is set to zero, if the Type does not have
+The \p Type field encodes the NCP message type. The \p Code field can be
+used for sub-typing and is set to zero if the \p Type does not have
 sub-types.
 
 
 Neighbor solicitation message
+\code
 0                   1                   2                   3
 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -25,6 +28,7 @@ Neighbor solicitation message
 +---------------+---------------+---------------+---------------+
 |        Target address         |           reserved            |
 +---------------------------------------------------------------+
+\endcode
 
 NCP fields:
     Type    1
@@ -32,6 +36,8 @@ NCP fields:
 
 
 Neighbor advertisment message
+
+\code
 0                   1                   2                   3
 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -39,6 +45,7 @@ Neighbor advertisment message
 +---------------+---------------+---------------+---------------+
 |        Target address         |S|         reserved            |
 +---------------------------------------------------------------+
+\endcode
 
 NCP fields:
     Type    2
@@ -210,6 +217,18 @@ class NetworkControlProtocol
 {
 public:
     static const int headerType = 1;
+
+    bool accepts(int nextHeaderType) const
+    {
+        return nextHeaderType == NetworkControlProtocol::headerType;
+    }
+
+    void handle(const char* data)
+    {
+        std::cout << "Ncp protocol - " << data << std::endl;
+    }
+
+    //NetworkControlProtocol(Kernel* kernel);
 
     void createNeighborSolictiation()
     {

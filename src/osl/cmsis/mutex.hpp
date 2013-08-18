@@ -21,6 +21,8 @@
 #ifndef OSL_CMSIS_MUTEX_HPP
 #define OSL_CMSIS_MUTEX_HPP
 
+#include "chrono.hpp"
+
 #include "cmsis_os.h"
 
 #include <boost/assert.hpp>
@@ -39,12 +41,15 @@ BOOST_CONSTEXPR_OR_CONST defer_lock_t defer_lock = defer_lock_t();
 BOOST_CONSTEXPR_OR_CONST defer_lock_t try_to_lock = try_to_lock_t();
 BOOST_CONSTEXPR_OR_CONST defer_lock_t adopt_lock = adopt_lock_t();
 
-//! A recursive mutex with support for timeout.
-class recursive_timed_mutex : boost::noncopyable
+namespace detail
+{
+
+template <typename DerivedT>
+class generic_mutex : boost::noncopyable
 {
 public:
-    //! Creates a recursive mutex with support for timeout.
-    recursive_timed_mutex()
+    // Create a generic mutex.
+    generic_mutex()
         : m_id(0)
     {
         osMutexDef_t mutexDef = { m_cmsisMutexControlBlock };
@@ -53,41 +58,35 @@ public:
             ::boost::throw_exception(std::system_error());
     }
 
-    ~recursive_timed_mutex()
+    // Destroys the mutex.
+    ~generic_mutex()
     {
         if (m_id)
             osMutexDelete(m_id);
     }
 
-    //! Locks the mutex.
-    //! Blocks the current thread until this mutex has been locked by it.
-    //!
-    //! \sa try_lock()
+    // Locks the mutex. Calls post_lock_check() after a successful lock.
     void lock()
     {
         osStatus status = osMutexWait(m_id, osWaitForever);
         if (status != osOK)
             ::boost::throw_exception(std::system_error());
+        derived()->post_lock_check();
     }
 
-    //! Tests and locks the mutex if it is available.
-    //! If this mutex is available, it is locked by the calling thread and
-    //! \p true is returned. If the mutex is already locked, the method
-    //! returns \p false without blocking.
+    // Tries to lock the mutex. If successful, returns the result of calling
+    // post_try_lock_correction().
     bool try_lock()
     {
         osStatus status = osMutexWait(m_id, 0);
         if (status == osOK)
-            return true;
+        {
+            return derived()->post_try_lock_correction();
+        }
         else
             return false;
     }
 
-    //bool try_lock_for(duration);
-
-    //! Unlocks the mutex.
-    //! Unlocks this mutex which must have been locked previously by the
-    //! calling thread.
     void unlock()
     {
         osStatus status = osMutexRelease(m_id);
@@ -97,17 +96,175 @@ public:
         BOOST_ASSERT(status == osOK);
     }
 
-private:
+protected:
     uint32_t m_cmsisMutexControlBlock[3];
+    osMutexId m_id;
+
+    P_MUCB mutexControlBlock()
+    {
+        return (P_MUCB)m_cmsisMutexControlBlock;
+    }
+
+    DerivedT* derived()
+    {
+        return static_cast<DerivedT*>(this);
+    }
+
+    void post_lock_check()
+    {
+    }
+
+    bool post_try_lock_correction()
+    {
+        return true;
+    }
+};
+
+class mutex_try_locker
+{
+public:
+    mutex_try_locker(osMutexId id)
+        : m_id(id)
+    {
+    }
+
+    bool operator() (int32_t timeout)
+    {
+        osStatus status = osMutexWait(m_id, timeout);
+        if (status == osOK)
+            return true;
+
+        if (   status != osErrorTimeoutResource
+            && status != osErrorResource)
+            throw -1;
+
+        return false;
+    }
+
+private:
     osMutexId m_id;
 };
 
+template <typename DerivedT>
+class generic_timed_mutex : public generic_mutex<DerivedT>
+{
+public:
+    template <typename RepT, typename PeriodT>
+    bool try_lock_for(const chrono::duration<RepT, PeriodT>& d)
+    {
+        mutex_try_locker locker(m_id);
+        return chrono::detail::cmsis_wait<RepT, PeriodT, mutex_try_locker>(
+                    d, locker);
+    }
+};
+
+template <typename BaseT>
+class nonrecursive_adapter : public BaseT<nonrecursive_adapter>
+{
+protected:
+    void post_lock_check()
+    {
+        assert(pmucb()->level == 1);
+    }
+
+    bool post_try_lock_correction()
+    {
+        if (pmucb()->level == 1)
+            return true;
+
+        assert(mutexControlBlock()->level == 2);
+        osStatus status = osMutexRelease(m_id);
+        assert(status == OS_OK);
+        return false;
+    }
+};
+
+} // namespace detail
+
+class mutex
+#ifndef OSL_DOXYGEN_RUN
+        : public detail::nonrecursive_adapter<detail::generic_mutex>
+#endif // OSL_DOXYGEN_RUN
+{
+public:
+#ifdef OSL_DOXYGEN_RUN
+    //! Creates a mutex.
+    mutex();
+    //! Destroys the mutex.
+    ~mutex();
+    //! Locks the mutex.
+    //! Blocks the current thread until this mutex has been locked by it.
+    //! It is undefined behaviour, if the calling thread has already acquired
+    //! the mutex and wants to lock it again.
+    //!
+    //! \sa try_lock()
+    void lock();
+    //! Tests and locks the mutex if it is available.
+    //! If this mutex is available, it is locked by the calling thread and
+    //! \p true is returned. If the mutex is already locked, the method
+    //! returns \p false without blocking.
+    bool try_lock();
+    //! Unlocks the mutex.
+    //! Unlocks this mutex which must have been locked previously by the
+    //! calling thread.
+    void unlock();
+#endif // OSL_DOXYGEN_RUN
+};
+
+class timed_mutex
+#ifndef OSL_DOXYGEN_RUN
+        : public detail::nonrecursive_adapter<detail::generic_timed_mutex>
+#endif // OSL_DOXYGEN_RUN
+{
+public:
+#ifdef OSL_DOXYGEN_RUN
+    //! Creates a mutex with support for timeout.
+    timed_mutex();
+    //! Destroys the mutex.
+    ~timed_mutex();
+    //! Locks the mutex.
+    //! Blocks the current thread until this mutex has been locked by it.
+    //! It is undefined behaviour, if the calling thread has already acquired
+    //! the mutex and wants to lock it again.
+    //!
+    //! \sa try_lock()
+    void lock();
+    //! Tests and locks the mutex if it is available.
+    //! If this mutex is available, it is locked by the calling thread and
+    //! \p true is returned. If the mutex is already locked, the method
+    //! returns \p false without blocking.
+    bool try_lock();
+    //! Unlocks the mutex.
+    //! Unlocks this mutex which must have been locked previously by the
+    //! calling thread.
+    void unlock();
+#endif // OSL_DOXYGEN_RUN
+};
+
+//! A recursive mutex.
+class recursive_mutex
+#ifndef OSL_DOXYGEN_RUN
+        : public detail::generic_mutex<recursive_mutex>
+#endif // OSL_DOXYGEN_RUN
+{
+public:
+};
+
+//! A recursive mutex with support for timeout.
+class recursive_timed_mutex
+#ifndef OSL_DOXYGEN_RUN
+        : public detail::generic_timed_mutex<recursive_timed_mutex>
+#endif // OSL_DOXYGEN_RUN
+{
+public:
+};
+
 //! A lock guard for RAII-style mutex locking.
-template <class Mutex>
+template <class MutexT>
 class lock_guard : boost::noncopyable
 {
 public:
-    typedef Mutex mutex_type;
+    typedef MutexT mutex_type;
 
     //! Creates a lock guard.
     //! Creates a lock guard and locks the given \p mutex.
@@ -139,12 +296,14 @@ private:
     mutex_type& m_mutex;
 };
 
+//! A unique lock for a mutex.
 template <class Mutex>
 class unique_lock
 {
 public:
     typedef Mutex mutex_type;
 
+    //! Creates a lock which is not associated with a mutex.
     unique_lock() BOOST_NOEXCEPT
         : m_mutex(0),
           m_locked(false)
@@ -177,6 +336,10 @@ public:
         m_locked = mutex.try_lock();
     }
 
+    //! Creates a unique lock for a locked mutex.
+    //! Creates a unique lock for the given \p mutex. The constructor does
+    //! not lock the mutex but assumes that it has already been locked
+    //! by the caller.
     unique_lock(mutex_type& mutex, adopt_lock_t /*tag*/)
         : m_mutex(&mutex),
           m_locked(true)
@@ -233,7 +396,9 @@ public:
     }
 
 private:
+    //! A pointer to the associated mutex.
     mutex_type* m_mutex;
+    //! A flag indicating if the mutex has been locked.
     bool m_locked;
 };
 
