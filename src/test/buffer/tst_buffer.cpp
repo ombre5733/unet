@@ -12,6 +12,7 @@ TEST(Buffer, Initialization)
     //ASSERT_EQ(false, b.m_slistHook.is_linked());
 }
 
+#if 0
 #include "../staticobjectpool.hpp"
 
 
@@ -53,3 +54,4 @@ TEST(Pooling, X)
     b->dispose();
 
 }
+#endif

@@ -11,21 +11,25 @@ include_directories(
       ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+add_definitions("-DWEOS_USER_CONFIG=\"${CMAKE_CURRENT_SOURCE_DIR}/user_config.hpp\"")
 
-add_executable(unet
-               ../buffer.cpp
-               ../buffer2.cpp
-               ../kernel.cpp
-               ../neighborcache.cpp
-               ../networkaddress.cpp
-               ../networkinterface.cpp
-               ../routingtable.cpp
-               ../main.cpp)
-target_link_libraries(unet ${Boost_LIBRARIES})
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+include_directories(.)
+include_directories(../3rdparty)
+
+#add_executable(unet
+#               ../buffer.cpp
+#               ../buffer2.cpp
+#               ../kernel.cpp
+#               ../neighborcache.cpp
+#               ../networkaddress.cpp
+#               ../networkinterface.cpp
+#               ../routingtable.cpp
+#               ../main.cpp)
+#target_link_libraries(unet ${Boost_LIBRARIES})
 
 add_subdirectory(buffer)
-add_subdirectory(networkaddress)
-add_subdirectory(staticobjectpool)
-add_subdirectory(timeoutlist)
-add_subdirectory(unetheader)
+#add_subdirectory(networkaddress)
+#add_subdirectory(staticobjectpool)
+#add_subdirectory(timeoutlist)
+#add_subdirectory(unetheader)

@@ -18,9 +18,9 @@ template <typename DerivedT>
 class NetworkHeaderTypeDispatcher
 {
 public:
-    void dispatch(uint8_t nextHeader)
+    void dispatch(std::uint8_t nextHeader)
     {
-        std::cout << "NetworkHeaderTypeDispatcher - nextHeader = " << (uint16_t)nextHeader << std::endl;
+        std::cout << "NetworkHeaderTypeDispatcher - nextHeader = " << (std::uint16_t)nextHeader << std::endl;
         if (nextHeader == 1)
         {
             derived()->onNetworkControlProtocol();
@@ -63,7 +63,7 @@ public:
                 break;
 
             default:
-                // ... dignostics ...
+                // ... diagnostics ...
                 break;
         }
     }

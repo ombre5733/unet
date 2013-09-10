@@ -15,14 +15,14 @@
 
 struct UnetHeader
 {
-    uint8_t version : 4;
-    uint8_t hopCount : 4;
-    uint8_t nextHeader;
-    uint16_t length;
-    uint16_t sourceAddress;
-    uint16_t destinationAddress;
+    std::uint8_t version : 4;
+    std::uint8_t hopCount : 4;
+    std::uint8_t nextHeader;
+    std::uint16_t length;
+    std::uint16_t sourceAddress;
+    std::uint16_t destinationAddress;
 
-    static const uint8_t maxHopCount = 15;
+    static const std::uint8_t maxHopCount = 15;
 };
 
 #include <iostream>

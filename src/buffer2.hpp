@@ -29,9 +29,9 @@ public:
 //! A memento for storing some buffer state.
 //! The BufferMemento can---to a certain degree---save and restore the state of
 //! a Buffer. It does not copy the buffer's data but only the current iterators.
-//! This is sufficient as long as the following processing chain restricts
-//! itself to prepending or appending data to the buffer and does not modify the
-//! elements between the iterators.
+//! This is sufficient as long as the following processing elements in the
+//! chain restrict themselves to prepending or appending data to the buffer
+//! and do not modify the data elements between the iterators.
 //!
 //! A BufferMemento should be used whenever a processing object
 //! wishes to get the buffer back after the processing chain has been finished.
@@ -63,9 +63,9 @@ public:
 private:
     BufferGrabber* m_grabber;
     //! Points to the first valid byte in m_data.
-    uint8_t* m_begin;
+    std::uint8_t* m_begin;
     //! Points just past the last valid byte in m_data.
-    uint8_t* m_end;
+    std::uint8_t* m_end;
 
 public:
     typedef boost::intrusive::slist_member_hook<
@@ -111,7 +111,7 @@ public:
     explicit Buffer2(BufferDisposer* disposer)
         : m_disposer(disposer)
     {
-        m_begin = m_end = static_cast<uint8_t*>(m_data.address()) + 32;
+        m_begin = m_end = static_cast<std::uint8_t*>(m_data.address()) + 32;
     }
 
     ~Buffer2()
@@ -137,12 +137,12 @@ public:
             m_disposer->operator ()(this);
     }
 
-    const uint8_t* begin() const
+    const std::uint8_t* begin() const
     {
         return m_begin;
     }
 
-    const uint8_t* end() const
+    const std::uint8_t* end() const
     {
         return m_end;
     }
@@ -153,7 +153,7 @@ public:
     void push_back(const TType& data)
     {
         assert(m_end + sizeof(data)
-               <= static_cast<uint8_t*>(m_data.address()) + BUFFER_SIZE);
+               <= static_cast<std::uint8_t*>(m_data.address()) + BUFFER_SIZE);
         std::memcpy(m_end, &data, sizeof(data));
         m_end += sizeof(data);
     }
@@ -164,7 +164,7 @@ public:
     void push_front(const TType& data)
     {
         m_begin -= sizeof(data);
-        assert(m_begin >= static_cast<uint8_t*>(m_data.address()));
+        assert(m_begin >= static_cast<std::uint8_t*>(m_data.address()));
         std::memcpy(m_begin, &data, sizeof(data));
     }
 
@@ -178,9 +178,9 @@ private:
     //! The storage of the buffer.
     ::boost::aligned_storage<BUFFER_SIZE>::type m_data;
     //! Points to the first valid byte in m_data.
-    uint8_t* m_begin;
+    std::uint8_t* m_begin;
     //! Points just past the last valid byte in m_data.
-    uint8_t* m_end;
+    std::uint8_t* m_end;
     //! The object which is invoked for disposing this buffer.
     BufferDisposer* m_disposer;
     //! A stack for storing the mementos.

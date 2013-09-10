@@ -1,9 +1,12 @@
-#ifndef BUFFERPOOL_HPP
-#define BUFFERPOOL_HPP
+#ifndef UNET_BUFFERPOOL_HPP
+#define UNET_BUFFERPOOL_HPP
 
 #include "buffer2.hpp"
-#include "staticobjectpool.hpp"
 
+#include <weos/objectpool.hpp>
+
+namespace uNet
+{
 
 template <unsigned TBufferSize>
 class BufferPool : public BufferDisposer
@@ -36,6 +39,7 @@ public:
     }
 
 protected:
+    //! \reimp
     virtual void operator() (buffer_type* buffer)
     {
         release(buffer);
@@ -43,7 +47,9 @@ protected:
 
 private:
     static const int NUM_BUFFERS = 10;
-    StaticObjectPool<buffer_type, NUM_BUFFERS> m_pool;
+    weos::counting_object_pool<buffer_type, NUM_BUFFERS> m_pool;
 };
 
-#endif // BUFFERPOOL_HPP
+} // namespace uNet
+
+#endif // UNET_BUFFERPOOL_HPP
