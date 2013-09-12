@@ -1,5 +1,5 @@
-#ifndef KERNEL_HPP
-#define KERNEL_HPP
+#ifndef UNET_KERNEL_HPP
+#define UNET_KERNEL_HPP
 
 #include "buffer.hpp"
 #include "mutex.hpp"
@@ -188,4 +188,4 @@ private:
     void eventLoop();
 };
 
-#endif // KERNEL_HPP
+#endif // UNET_KERNEL_HPP

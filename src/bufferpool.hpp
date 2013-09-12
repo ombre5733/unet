@@ -1,6 +1,8 @@
 #ifndef UNET_BUFFERPOOL_HPP
 #define UNET_BUFFERPOOL_HPP
 
+#include "config.hpp"
+
 #include "buffer2.hpp"
 
 #include <weos/objectpool.hpp>
@@ -14,9 +16,9 @@ class BufferPool : public BufferDisposer
 public:
     typedef Buffer2 buffer_type; //! \todo Buffer2 should take the size as parameter
 
+    //! Acquires a buffer from the pool.
     buffer_type* acquire()
     {
-        std::cout << "BufferPool::acquire" << std::endl;
         return m_pool.construct(this);
     }
 
@@ -27,9 +29,10 @@ public:
         return m_pool.empty();
     }
 
+    //! Releases a buffer.
+    //! Releases the \p buffer which must have been acquired from this pool.
     void release(buffer_type* const buffer)
     {
-        std::cout << "BufferPool::release" << std::endl;
         m_pool.destroy(buffer);
     }
 
@@ -40,7 +43,7 @@ public:
 
 protected:
     //! \reimp
-    virtual void operator() (buffer_type* buffer)
+    virtual void dispose(buffer_type* buffer)
     {
         release(buffer);
     }

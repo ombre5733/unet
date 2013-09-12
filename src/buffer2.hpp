@@ -1,5 +1,7 @@
-#ifndef BUFFER2_HPP
-#define BUFFER2_HPP
+#ifndef UNET_BUFFER2_HPP
+#define UNET_BUFFER2_HPP
+
+#include "config.hpp"
 
 #include <boost/intrusive/slist.hpp>
 #include <boost/type_traits.hpp>
@@ -12,6 +14,9 @@
 // Pool -> RPC -> TCP -> Kernel -> Ifc -> TCP -> RPC -> Pool
 
 // Pool -> Udp -> Kernel -> Ifc -> Pool
+
+namespace uNet
+{
 
 class Buffer2;
 
@@ -61,10 +66,12 @@ public:
     }
 
 private:
+    //! The object to which the buffer is handed over after it is not needed
+    //! in the processing chain any longer.
     BufferGrabber* m_grabber;
-    //! Points to the first valid byte in m_data.
+    //! Points to the first valid byte in Buffer2::m_data.
     std::uint8_t* m_begin;
-    //! Points just past the last valid byte in m_data.
+    //! Points just past the last valid byte in Buffer2m_data.
     std::uint8_t* m_end;
 
 public:
@@ -98,7 +105,9 @@ typedef boost::intrusive::slist<
 class BufferDisposer
 {
 public:
-    virtual void operator() (Buffer2* buffer) = 0;
+    //! Disposes a buffer.
+    //! Disposes the given \p buffer.
+    virtual void dispose(Buffer2* buffer) = 0;
 };
 
 class Buffer2
@@ -118,6 +127,7 @@ public:
     {
     }
 
+    //! Adds a memento to the buffer.
     void addMemento(BufferMemento& memento)
     {
         memento.m_begin = m_begin;
@@ -125,16 +135,19 @@ public:
         m_mementoStack.push_front(memento);
     }
 
+    //! Disposes the buffer.
     void dispose()
     {
         if (!m_mementoStack.empty())
         {
             BufferMemento& memento = m_mementoStack.front();
+            m_begin = memento.m_begin;
+            m_end = memento.m_end;
             memento.m_grabber->grab(*this);
             //! \todo m_mementoStack.pop_front_and_dispose();
         }
         else
-            m_disposer->operator ()(this);
+            m_disposer->dispose(this);
     }
 
     const std::uint8_t* begin() const
@@ -152,8 +165,8 @@ public:
     template <typename TType>
     void push_back(const TType& data)
     {
-        assert(m_end + sizeof(data)
-               <= static_cast<std::uint8_t*>(m_data.address()) + BUFFER_SIZE);
+        UNET_ASSERT(m_end + sizeof(data)
+                    <= static_cast<std::uint8_t*>(m_data.address()) + BUFFER_SIZE);
         std::memcpy(m_end, &data, sizeof(data));
         m_end += sizeof(data);
     }
@@ -164,7 +177,7 @@ public:
     void push_front(const TType& data)
     {
         m_begin -= sizeof(data);
-        assert(m_begin >= static_cast<std::uint8_t*>(m_data.address()));
+        UNET_ASSERT(m_begin >= static_cast<std::uint8_t*>(m_data.address()));
         std::memcpy(m_begin, &data, sizeof(data));
     }
 
@@ -176,7 +189,7 @@ public:
 
 private:
     //! The storage of the buffer.
-    ::boost::aligned_storage<BUFFER_SIZE>::type m_data;
+    boost::aligned_storage<BUFFER_SIZE>::type m_data;
     //! Points to the first valid byte in m_data.
     std::uint8_t* m_begin;
     //! Points just past the last valid byte in m_data.
@@ -187,4 +200,6 @@ private:
     BufferMementoStack m_mementoStack;
 };
 
-#endif // BUFFER2_HPP
+} // namespace uNet
+
+#endif // UNET_BUFFER2_HPP
