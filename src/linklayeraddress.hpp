@@ -1,7 +1,10 @@
-#ifndef LINKLAYERADDRESS_HPP
-#define LINKLAYERADDRESS_HPP
+#ifndef UNET_LINKLAYERADDRESS_HPP
+#define UNET_LINKLAYERADDRESS_HPP
 
 #include <cstdint>
+
+namespace uNet
+{
 
 struct LinkLayerAddress
 {
@@ -10,7 +13,9 @@ struct LinkLayerAddress
     {
     }
 
-    uint32_t address;
+    std::uint32_t address;
 };
 
-#endif // LINKLAYERADDRESS_HPP
+} // namespace uNet
+
+#endif // UNET_LINKLAYERADDRESS_HPP

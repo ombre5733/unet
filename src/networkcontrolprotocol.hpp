@@ -1,10 +1,15 @@
-#ifndef NETWORKCONTROLPROTOCOL_HPP
-#define NETWORKCONTROLPROTOCOL_HPP
+#ifndef UNET_NETWORKCONTROLPROTOCOL_HPP
+#define UNET_NETWORKCONTROLPROTOCOL_HPP
 
 /*!
 Network Control Protocol
 
-All messages start with the following header:
+The network control protocol (NCP) is used to perform basic network management
+such as making a node known to other participants on the same bus or to query
+the network address if only a link-layer address is known.
+
+All messages of the network control protocol (NCP) start with the following
+header:
 
 \code
 0                   1                   2                   3
@@ -18,8 +23,14 @@ The \p Type field encodes the NCP message type. The \p Code field can be
 used for sub-typing and is set to zero if the \p Type does not have
 sub-types.
 
+\todo Describe the computation of the checksum
+
 
 Neighbor solicitation message
+
+A neighbor solicitation is sent whenever a device needs to query the presence
+of a neighbor on a bus.
+
 \code
 0                   1                   2                   3
 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -34,8 +45,14 @@ NCP fields:
     Type    1
     Code    0
 
+The <tt>Target address</tt> is the address of the device which is queried.
+
 
 Neighbor advertisment message
+
+A neighbor advertisment is sent by a device to make itself known to the
+other devices on the bus. A neighbor advertisment can either be sent
+spontaneously or as a response to a neighbor solicitation.
 
 \code
 0                   1                   2                   3
@@ -50,6 +67,12 @@ Neighbor advertisment message
 NCP fields:
     Type    2
     Code    0
+
+The \p S (solicited) bit is set, if the neighbor advertisment is sent as a
+response to a neighbor solicitation. It is kept clear, if the advertisment
+has been sent spontaneously (e.g. after a connection to a link has been
+established).
+
 */
 
 #include "buffer.hpp"
@@ -58,17 +81,20 @@ NCP fields:
 
 #include <cstdint>
 
+namespace uNet
+{
+
 struct NetworkControlProtocolHeader
 {
-    NetworkControlProtocolHeader(uint8_t t, uint8_t c = 0)
+    NetworkControlProtocolHeader(std::uint8_t t, std::uint8_t c = 0)
         : type(t),
           code(c)
     {
     }
 
-    uint8_t type;
-    uint8_t code;
-    uint16_t checksum;
+    std::uint8_t type;
+    std::uint8_t code;
+    std::uint16_t checksum;
 };
 
 struct NeighborSolicitation
@@ -80,8 +106,8 @@ struct NeighborSolicitation
     }
 
     NetworkControlProtocolHeader header;
-    uint16_t targetAddress;
-    uint16_t reserved;
+    std::uint16_t targetAddress;
+    std::uint16_t reserved;
 };
 
 struct NeighborAdvertisment
@@ -94,33 +120,32 @@ struct NeighborAdvertisment
     }
 
     NetworkControlProtocolHeader header;
-    uint16_t targetAddress;
+    std::uint16_t targetAddress;
     bool solicited : 1;
-    uint16_t reserved : 15;
+    std::uint16_t reserved : 15;
 };
+
+namespace NcpOption
+{
 
 struct NetworkControlProtocolOption
 {
     const static int unitByteSize = 4;
 
-    NetworkControlProtocolOption(uint8_t _type, uint8_t _length)
+    NetworkControlProtocolOption(std::uint8_t _type, std::uint8_t _length)
         : type(_type),
           length(_length)
     {
     }
 
-    uint16_t byteSize() const
+    std::uint16_t byteSize() const
     {
         return length * unitByteSize;
     }
 
-    uint8_t type;
-    uint8_t length;
+    std::uint8_t type;
+    std::uint8_t length;
 };
-
-
-namespace NcpOption
-{
 
 struct SourceLinkLayerAddress : public NetworkControlProtocolOption
 {
@@ -150,10 +175,12 @@ struct TargetLinkLayerAddress : public NetworkControlProtocolOption
     LinkLayerAddress linkLayerAddress;
 };
 
+//! Searches a NCP option inside a range.
 template <typename OptT>
-OptT* find(uint8_t* begin, uint8_t* end)
+OptT* find(std::uint8_t* begin, std::uint8_t* end)
 {
-    while (static_cast<size_t>(end - begin) >= sizeof(NetworkControlProtocolOption))
+    while (static_cast<std::size_t>(end - begin)
+           >= sizeof(NetworkControlProtocolOption))
     {
         const NetworkControlProtocolOption* optHeader
                 = reinterpret_cast<const NetworkControlProtocolOption*>(begin);
@@ -166,6 +193,7 @@ OptT* find(uint8_t* begin, uint8_t* end)
 
 } // namespace NcpOption
 
+//! A helper class to create network control protocol messages.
 class NetworkControlProtocolMessageBuilder
 {
 public:
@@ -174,37 +202,42 @@ public:
     {
     }
 
+    //! Creates a neighbor advertisment message.
     void createNeighborAdvertisment(HostAddress targetAddress,
-                                    bool solicitated = false)
+                                    bool solicited = false)
     {
         NeighborAdvertisment advertisment;
         advertisment.targetAddress = targetAddress;
-        advertisment.solicited = solicitated;
-        m_buffer.push_back((uint8_t*)&advertisment, sizeof(advertisment));
+        advertisment.solicited = solicited;
+        m_buffer.push_back((std::uint8_t*)&advertisment, sizeof(advertisment));
     }
 
+    //! Creates a neighbor solicitation message.
     void createNeighborSolicitation(HostAddress targetAddress)
     {
         NeighborSolicitation solicitation;
         solicitation.targetAddress = targetAddress;
-        m_buffer.push_back((uint8_t*)&solicitation, sizeof(solicitation));
+        m_buffer.push_back((std::uint8_t*)&solicitation, sizeof(solicitation));
     }
 
+    //! Adds a source link-layer address option.
     void addSourceLinkLayerAddressOption(LinkLayerAddress linkLayerAddress)
     {
         NcpOption::SourceLinkLayerAddress llaOpt;
         llaOpt.linkLayerAddress = linkLayerAddress;
-        m_buffer.push_back((uint8_t*)&llaOpt, sizeof(llaOpt));
+        m_buffer.push_back((std::uint8_t*)&llaOpt, sizeof(llaOpt));
     }
 
+    //! Adds a target link-layer address option.
     void addTargetLinkLayerAddressOption(LinkLayerAddress linkLayerAddress)
     {
         NcpOption::TargetLinkLayerAddress llaOpt;
         llaOpt.linkLayerAddress = linkLayerAddress;
-        m_buffer.push_back((uint8_t*)&llaOpt, sizeof(llaOpt));
+        m_buffer.push_back((std::uint8_t*)&llaOpt, sizeof(llaOpt));
     }
 
 private:
+    //! The buffer in which the message will be built.
     Buffer& m_buffer;
 };
 
@@ -230,7 +263,7 @@ public:
 
     //NetworkControlProtocol(Kernel* kernel);
 
-    void createNeighborSolictiation()
+    void createNeighborSolicitation()
     {
         /*
         Buffer* b = BufferPool::allocate();
@@ -238,11 +271,11 @@ public:
         header.sourceAddress = interface->networkAddress().hostAddress();
         header.destinationAddress = HostAddress::multicastAddress();
         header.nextHeader = 1;
-        b->push_back((uint8_t*)&header, sizeof(header));
+        b->push_back((std::uint8_t*)&header, sizeof(header));
 
         NeighborSolicitation solicitation;
         solicitation.targetAddress = destAddr;
-        b->push_back((uint8_t*)&solicitation, sizeof(solicitation));
+        b->push_back((std::uint8_t*)&solicitation, sizeof(solicitation));
         */
     }
 
@@ -258,7 +291,7 @@ public:
         const NetworkControlProtocolHeader* header
                 = reinterpret_cast<const NetworkControlProtocolHeader*>(packet.dataBegin());
 
-        std::cout << "NCP - header type = " << (uint16_t)header->type << std::endl;
+        std::cout << "NCP - header type = " << (std::uint16_t)header->type << std::endl;
         switch (header->type)
         {
             case 1:
@@ -295,4 +328,6 @@ private:
     }
 };
 
-#endif // NETWORKCONTROLPROTOCOL_HPP
+} // namespace uNet
+
+#endif // UNET_NETWORKCONTROLPROTOCOL_HPP

@@ -1,5 +1,8 @@
 #include "networkaddress.hpp"
 
+namespace uNet
+{
+
 bool HostAddress::isInSubnet(const HostAddress &subnetAddress,
                              uint16_t netmask) const
 {
@@ -11,3 +14,5 @@ bool HostAddress::isInSubnet(const NetworkAddress& subnetAddress) const
     return (m_address & subnetAddress.netmask())
             == (subnetAddress.hostAddress().address() & subnetAddress.netmask());
 }
+
+} // namespace uNet

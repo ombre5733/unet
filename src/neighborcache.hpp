@@ -1,10 +1,9 @@
-#ifndef NEIGHBORCACHE_HPP
-#define NEIGHBORCACHE_HPP
+#ifndef UNET_NEIGHBORCACHE_HPP
+#define UNET_NEIGHBORCACHE_HPP
 
 #include "buffer.hpp"
 #include "linklayeraddress.hpp"
 #include "networkaddress.hpp"
-#include "staticobjectpool.hpp"
 
 #include <boost/intrusive/list.hpp>
 
@@ -14,12 +13,16 @@
 #include <map>
 #include <vector>
 
+namespace uNet
+{
+
 const int MAX_NUM_NEIGHBORS = 10;
 
 class NetworkInterface;
 
 //! A neighbor on a physical link.
-//! A Neighbor is a device which can be accessed on a physical link.
+//! A Neighbor is a device which can be directly accessed on a physical link
+//! without the need of routing a message through a device.
 class Neighbor
 {
 public:
@@ -46,12 +49,14 @@ public:
     {
     }
 
+    //! Returns the host address.
     HostAddress address() const
     {
         return m_hostAddress;
     }
 
-    NetworkInterface* interface() const
+    //! Returns the interface to the physical link.
+    NetworkInterface* linkInterface() const
     {
         return m_interface;
     }
@@ -62,6 +67,7 @@ public:
         return m_linkLayerAddress;
     }
 
+    //! Returns the buffer queue.
     BufferQueue& sendQueue()
     {
         return m_sendQueue;
@@ -84,9 +90,9 @@ private:
     //! A list of packets which have been queued for sending.
     BufferQueue m_sendQueue;
     State m_state;
-    uint8_t m_numTimeouts;
+    std::uint8_t m_numTimeouts;
 
-    uint32_t m_timeout;
+    std::uint32_t m_timeout;
 
 public:
     typedef boost::intrusive::list_member_hook<
@@ -115,7 +121,7 @@ class TimeoutList : public boost::intrusive::list<
                     &Neighbor::m_timeoutListHook> > base_type;
 
 public:
-    void insert(Neighbor& neighbor, uint32_t timeout);
+    void insert(Neighbor& neighbor, std::uint32_t timeout);
 };
 
 // - lookupDestination() Called from the kernel if it wants to send a
@@ -126,7 +132,7 @@ public:
     Neighbor* lookupDestination(HostAddress address) const;
     Neighbor* lookupNeighbor(HostAddress address) const;
     Neighbor* createNeighborCacheEntry(HostAddress address,
-                                           NetworkInterface* interface);
+                                       NetworkInterface* interface);
     void removeNeighborCacheEntry();
 
 private:
@@ -139,4 +145,6 @@ private:
     StaticObjectPool<Neighbor, MAX_NUM_NEIGHBORS> m_neighborPool;
 };
 
-#endif // NEIGHBORCACHE_HPP
+} // namespace uNet
+
+#endif // UNET_NEIGHBORCACHE_HPP

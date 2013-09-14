@@ -74,7 +74,6 @@ public:
         return 0x1000;
     }
 
-
 private:
     std::uint16_t m_address;
 };

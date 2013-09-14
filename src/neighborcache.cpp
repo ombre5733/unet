@@ -1,5 +1,8 @@
 #include "neighborcache.hpp"
 
+namespace uNet
+{
+
 void Neighbor::setState(State state)
 {
     m_state = state;
@@ -103,3 +106,5 @@ void TimeoutList::insert(Neighbor& neighbor, uint32_t timeout)
 
     base_type::insert(iter, neighbor);
 }
+
+} // namespace uNet

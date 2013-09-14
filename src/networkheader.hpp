@@ -1,8 +1,10 @@
-#ifndef UNETHEADER_HPP
-#define UNETHEADER_HPP
+#ifndef UNET_NETWORKHEADER_HPP
+#define UNET_NETWORKHEADER_HPP
 
 #include <cstdint>
 
+namespace uNet
+{
 
 // The uNet network protocol has the following header
 // 0                   1                   2                   3
@@ -13,7 +15,7 @@
 // |            Source             |          Destination          |
 // +---------------+---------------+---------------+---------------+
 
-struct UnetHeader
+struct NetworkHeader
 {
     std::uint8_t version : 4;
     std::uint8_t hopCount : 4;
@@ -25,15 +27,6 @@ struct UnetHeader
     static const std::uint8_t maxHopCount = 15;
 };
 
-#include <iostream>
+} namespace uNet
 
-inline
-std::ostream& operator<< (std::ostream& os, const UnetHeader& hdr)
-{
-    os << std::hex << hdr.sourceAddress << " "
-       << std::hex << hdr.destinationAddress
-       << std::dec;
-    return os;
-}
-
-#endif // UNETHEADER_HPP
+#endif // UNET_NETWORKHEADER_HPP
