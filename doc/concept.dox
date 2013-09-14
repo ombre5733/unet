@@ -1,0 +1,55 @@
+/*!
+
+Message protocol
+
+A message sent via the network is composed of protocol headers and a payload.
+An arbitrary amount of headers can be chained together to form one message.
+In order to segment the message processing chain into individual loosely
+coupled blocks, a header should be self-contained. This means it can be used
+in isolation without having access to data stored in other headers.
+
+\code
++----------+----------+-----+----------+---------+
+| Header 1 | Header 2 | ... | Header n | Payload |
++----------+----------+-----+----------+---------+
+\endcode
+
+If a protocol also requires a footer, the payload is bracketed by the header
+and the footer.
+
+\code
++----------+----------+-----+----------+---------+----------+-----+----------+----------+
+| Header 1 | Header 2 | ... | Header n | Payload | Footer n | ... | Footer 2 | Footer 1 |
++----------+----------+-----+----------+---------+----------+-----+----------+----------+
+\endcode
+
+A typical approach is to segment the headers and footers according to the
+ISO-OSI layer model. A famous example is TCP/IP over ethernet, where a TCP
+packet is wrapped in an IP packet which is again wrapped in an ethernet MAC
+frame.
+
+
+
+Buffer
+
+A buffer is the central data storage unit used in the message processing
+chain. The design of a buffer has to meet the following requirements:
+- A buffer must have suitable alignment to store any data type. This ensures
+  that a buffer can be used in the same manner as dynamically allocated
+  memory without worries.
+- It must be possible to store the buffer in a queue. Message processors
+  (e.g. network interfaces) can then keep a list of pending buffers and do not
+  block other processors or the application.
+- It must be possible to prepend and append data. This is a central requirement
+  to minimize copying. The application can simply write its data into a buffer
+  and pass it on to the message processing chain. Every member in this chain
+  can prepend a header and append a footer without creating copies of the
+  payload. The last element in the chain (most likely the network interface)
+  is in charge for disposing the buffer when it is not needed any longer.
+- In certain situations it is necessary that an application retransmits a block
+  of data on demand. A possible implementation is that the application keeps a
+  copy of a buffer until it receives an acknowledge from the other end.
+  These copies can often be avoided when it is possible to reclaim a buffer
+  before it is disposed. --> BufferMemento
+
+*/

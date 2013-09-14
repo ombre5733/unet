@@ -33,19 +33,20 @@ public:
 
 //! A memento for storing some buffer state.
 //! The BufferMemento can---to a certain degree---save and restore the state of
-//! a Buffer. It does not copy the buffer's data but only the current iterators.
-//! This is sufficient as long as the following processing elements in the
-//! chain restrict themselves to prepending or appending data to the buffer
-//! and do not modify the data elements between the iterators.
+//! a Buffer. It does not memorize the buffer's data but only the current
+//! iterators. This is sufficient as long as the following processing elements
+//! in the chain restrict themselves to prepending or appending data to the
+//! buffer but do not touch the data between the iterators.
 //!
 //! A BufferMemento should be used whenever a processing object
 //! wishes to get the buffer back after the processing chain has been finished.
 //! As an example, consider a protocol which must be able to re-transmit the
-//! data upon request. Before the protocol submits the buffer to the sending
-//! interface, it creates a memento which is added to the buffer. When the
-//! interface has sent the data, it pops the most recent memento and returns
-//! the buffer back to the protocol. The protocol can backup the buffer in some
-//! list and keep it until it receives an acknowledge from the receiver.
+//! data upon request. Before the protocol object \p A submits the buffer to the
+//! sending interface, it creates a memento which is added to the buffer. When
+//! the interface has sent the data, it pops the most recent memento and returns
+//! the buffer back to the object \p A. Then \p A can keep a copy of the buffer
+//! until it receives an acknowledge signal from the receiver upon which the
+//! buffer will be disposed.
 class BufferMemento
 {
 public:

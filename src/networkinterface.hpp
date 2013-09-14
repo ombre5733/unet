@@ -1,9 +1,12 @@
-#ifndef NETWORKINTERFACE_HPP
-#define NETWORKINTERFACE_HPP
+#ifndef UNET_NETWORKINTERFACE_HPP
+#define UNET_NETWORKINTERFACE_HPP
 
 #include "buffer.hpp"
 #include "linklayeraddress.hpp"
 #include "networkaddress.hpp"
+
+namespace uNet
+{
 
 class Kernel;
 
@@ -132,4 +135,6 @@ private:
     friend class Kernel;
 };
 
-#endif // NETWORKINTERFACE_HPP
+} // namespace uNet
+
+#endif // UNET_NETWORKINTERFACE_HPP
