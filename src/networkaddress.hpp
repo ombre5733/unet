@@ -1,7 +1,10 @@
-#ifndef NETWORKADDRESS_HPP
-#define NETWORKADDRESS_HPP
+#ifndef UNET_NETWORKADDRESS_HPP
+#define UNET_NETWORKADDRESS_HPP
 
 #include <cstdint>
+
+namespace uNet
+{
 
 class NetworkAddress;
 
@@ -28,13 +31,13 @@ public:
     {
     }
 
-    HostAddress(uint16_t address)
+    HostAddress(std::uint16_t address)
         : m_address(address)
     {
     }
 
     //! Returns the address.
-    uint16_t address() const
+    std::uint16_t address() const
     {
         return m_address;
     }
@@ -56,11 +59,12 @@ public:
     //! Returns \p true, if this host address belongs to the sub-net which
     //! is defined by \p subnetAddress (one address from the sub-net) and the
     //! associated \p netmask.
-    bool isInSubnet(const HostAddress& subnetAddress, uint16_t netmask) const;
+    bool isInSubnet(const HostAddress& subnetAddress,
+                    std::uint16_t netmask) const;
 
     bool isInSubnet(const NetworkAddress& subnetAddress) const;
 
-    operator uint16_t() const
+    operator std::uint16_t() const
     {
         return m_address;
     }
@@ -72,7 +76,7 @@ public:
 
 
 private:
-    uint16_t m_address;
+    std::uint16_t m_address;
 };
 
 //! A complete network address consisting of the host address and the netmask.
@@ -84,7 +88,7 @@ public:
     {
     }
 
-    NetworkAddress(uint16_t address, uint16_t netmask)
+    NetworkAddress(std::uint16_t address, std::uint16_t netmask)
         : m_address(address),
           m_netmask(netmask)
     {
@@ -95,14 +99,16 @@ public:
         return m_address;
     }
 
-    uint16_t netmask() const
+    std::uint16_t netmask() const
     {
         return m_netmask;
     }
 
 private:
     HostAddress m_address;
-    uint16_t m_netmask;
+    std::uint16_t m_netmask;
 };
 
-#endif // NETWORKADDRESS_HPP
+} // namespace uNet
+
+#endif // UNET_NETWORKADDRESS_HPP

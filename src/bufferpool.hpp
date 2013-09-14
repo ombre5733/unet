@@ -10,7 +10,7 @@
 namespace uNet
 {
 
-template <unsigned TBufferSize>
+template <unsigned TBufferSize, unsigned TNumBuffers>
 class BufferPool : public BufferDisposer
 {
 public:
@@ -49,8 +49,7 @@ protected:
     }
 
 private:
-    static const int NUM_BUFFERS = 10;
-    weos::counting_object_pool<buffer_type, NUM_BUFFERS> m_pool;
+    weos::counting_object_pool<buffer_type, TNumBuffers> m_pool;
 };
 
 } // namespace uNet

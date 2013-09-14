@@ -11,7 +11,18 @@ class Cernel
 public:
 
 private:
+    void eventLoop();
+
+    BufferQueue m_sendQueue;
 };
+
+void Cernel::eventLoop()
+{
+    while (1)
+    {
+
+    }
+}
 
 } // namespace uNet
 

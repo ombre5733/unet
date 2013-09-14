@@ -2,11 +2,20 @@
 
 #include "gtest/gtest.h"
 
+class BufferDisposerStub : public uNet::BufferDisposer
+{
+public:
+    virtual void dispose(uNet::Buffer2* /*buffer*/)
+    {
+    }
+};
+
 TEST(Buffer, Initialization)
 {
-    //Buffer2 b;
-    //ASSERT_EQ(b.begin(), b.end());
-    //ASSERT_EQ(0, b.size());
+    BufferDisposerStub disposer;
+    uNet::Buffer2 b(&disposer);
+    ASSERT_EQ(b.begin(), b.end());
+    ASSERT_EQ(0, b.size());
 
     //ASSERT_EQ(0, b.interface());
     //ASSERT_EQ(false, b.m_slistHook.is_linked());

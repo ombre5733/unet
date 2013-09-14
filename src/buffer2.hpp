@@ -116,7 +116,7 @@ public:
     static const int BUFFER_SIZE = 256; //! \todo Add this as template parameter?
 
     //! Creates a buffer.
-    //! Creates a buffer which will be destroyed trough the buffer \p disposer.
+    //! Creates a buffer which will be destroyed via the buffer \p disposer.
     explicit Buffer2(BufferDisposer* disposer)
         : m_disposer(disposer)
     {
@@ -150,11 +150,13 @@ public:
             m_disposer->dispose(this);
     }
 
+    //! Returns a pointer to the beginning of the data.
     const std::uint8_t* begin() const
     {
         return m_begin;
     }
 
+    //! Returns a pointer just past the end of the data.
     const std::uint8_t* end() const
     {
         return m_end;
@@ -166,7 +168,8 @@ public:
     void push_back(const TType& data)
     {
         UNET_ASSERT(m_end + sizeof(data)
-                    <= static_cast<std::uint8_t*>(m_data.address()) + BUFFER_SIZE);
+                    <= static_cast<std::uint8_t*>(m_data.address())
+                       + BUFFER_SIZE);
         std::memcpy(m_end, &data, sizeof(data));
         m_end += sizeof(data);
     }
