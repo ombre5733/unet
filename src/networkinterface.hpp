@@ -8,7 +8,10 @@
 namespace uNet
 {
 
-class Kernel;
+class NetworkInterfaceListener
+{
+public:
+};
 
 //! A network interface.
 //! The network interface is the object which connects the network to the
@@ -64,7 +67,7 @@ public:
         Public
     };
 
-    explicit NetworkInterface(Kernel* kernel);
+    explicit NetworkInterface(NetworkInterfaceListener* listener);
 
     virtual void broadcast(Buffer& data) {}
 
@@ -75,12 +78,6 @@ public:
     //! Returns \p true, if the link to which this interface connects has
     //! addresses.
     bool linkHasAddresses() const;
-
-    //! Returns the kernel to which the network interface belongs.
-    Kernel* kernel() const
-    {
-        return m_kernel;
-    }
 
     //! Returns the link-layer address.
     //! Returns the link-layer address which uniquely identifies this interface
@@ -103,6 +100,8 @@ public:
         return m_networkAddress;
     }
 
+    //! Sets the link-layer address.
+    //! Sets the link-layer address of the interface to \p address.
     void setLinkLayerAddress(LinkLayerAddress address);
     void setName(const char* name);
 
@@ -120,7 +119,8 @@ public:
 private:
     //! The link-layer address of this interface.
     LinkLayerAddress m_linkLayerAddress;
-    Kernel* m_kernel;
+    //! The listener which is notified about events from this interface.
+    NetworkInterfaceListener* m_listener;
     const char* m_name;
     //! The address which has been assigned to the interface.
     NetworkAddress m_networkAddress;
@@ -131,8 +131,6 @@ private:
 
     //! A hook for adding this interface to the polling list.
     poll_list_hook_t m_pollListHook;
-
-    friend class Kernel;
 };
 
 } // namespace uNet

@@ -1,7 +1,10 @@
 #include "networkinterface.hpp"
 
-NetworkInterface::NetworkInterface(Kernel* kernel)
-    : m_kernel(kernel),
+namespace uNet
+{
+
+NetworkInterface::NetworkInterface(NetworkInterfaceListener* listener)
+    : m_listener(listener),
       m_name(0)
 {
 }
@@ -31,3 +34,5 @@ void NetworkInterface::setNetworkAddress(const NetworkAddress &addr)
 {
     m_networkAddress = addr;
 }
+
+} // namespace uNet
