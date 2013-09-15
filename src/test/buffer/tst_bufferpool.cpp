@@ -23,7 +23,7 @@ TEST(BufferPool, allocate_and_release)
     }
 }
 
-TEST(BufferPool, dispose)
+TEST(BufferPool, allocate_and_dispose)
 {
     uNet::BufferPool<256, 1> p;
     for (int i = 0; i < 100; ++i)
