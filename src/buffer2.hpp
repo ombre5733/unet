@@ -118,7 +118,8 @@ public:
 
     //! Creates a buffer.
     //! Creates a buffer which will be destroyed via the buffer \p disposer.
-    explicit Buffer2(BufferDisposer* disposer)
+    //! The disposer may be a null-pointer in which case it is never invoked.
+    explicit Buffer2(BufferDisposer* disposer = 0)
         : m_disposer(disposer)
     {
         m_begin = m_end = static_cast<std::uint8_t*>(m_data.address()) + 32;
@@ -129,11 +130,18 @@ public:
     }
 
     //! Adds a memento to the buffer.
+    //! Adds the \p memento to this buffer.
     void addMemento(BufferMemento& memento)
     {
         memento.m_begin = m_begin;
         memento.m_end = m_end;
         m_mementoStack.push_front(memento);
+    }
+
+    //! Returns the buffer disposer.
+    BufferDisposer* disposer() const
+    {
+        return m_disposer;
     }
 
     //! Disposes the buffer.
@@ -147,7 +155,7 @@ public:
             memento.m_grabber->grab(*this);
             //! \todo m_mementoStack.pop_front_and_dispose();
         }
-        else
+        else if (m_disposer)
             m_disposer->dispose(this);
     }
 

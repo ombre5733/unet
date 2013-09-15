@@ -2,65 +2,140 @@
 
 #include "gtest/gtest.h"
 
-class BufferDisposerStub : public uNet::BufferDisposer
+#include <cstring>
+
+class TestBufferDisposer : public uNet::BufferDisposer
 {
 public:
-    virtual void dispose(uNet::Buffer2* /*buffer*/)
+    TestBufferDisposer()
+        : lastDisposedBuffer(0),
+          numDisposedBuffers(0)
     {
     }
+
+    virtual void dispose(uNet::Buffer2* buffer)
+    {
+        lastDisposedBuffer = buffer;
+        ++numDisposedBuffers;
+    }
+
+    uNet::Buffer2* lastDisposedBuffer;
+    int numDisposedBuffers;
 };
 
 TEST(Buffer, Initialization)
 {
-    BufferDisposerStub disposer;
-    uNet::Buffer2 b(&disposer);
-    ASSERT_EQ(b.begin(), b.end());
-    ASSERT_EQ(0, b.size());
+    {
+        uNet::Buffer2 b;
+        ASSERT_EQ(b.begin(), b.end());
+        ASSERT_TRUE(b.disposer() == 0);
+        ASSERT_EQ(0, b.size());
+    }
+
+    {
+        TestBufferDisposer disposer;
+        uNet::Buffer2 b(&disposer);
+        ASSERT_EQ(b.begin(), b.end());
+        ASSERT_TRUE(b.disposer() == &disposer);
+        ASSERT_EQ(0, b.size());
+    }
 
     //ASSERT_EQ(0, b.interface());
     //ASSERT_EQ(false, b.m_slistHook.is_linked());
 }
 
-#if 0
-#include "../staticobjectpool.hpp"
-
-
-
-template <unsigned TBufferSize>
-class BufferPool : public BufferDisposer
+TEST(Buffer, dispose)
 {
-public:
-    typedef Buffer2 buffer_type;
+    TestBufferDisposer disposer;
+    uNet::Buffer2 b1(&disposer);
+    uNet::Buffer2 b2(&disposer);
+    uNet::Buffer2 b3(&disposer);
 
-    buffer_type* acquire()
-    {
-        std::cout << "BufferPool::acquire" << std::endl;
-        return m_pool.construct(this);
-    }
+    b3.dispose();
+    ASSERT_EQ(disposer.lastDisposedBuffer, &b3);
+    ASSERT_EQ(1, disposer.numDisposedBuffers);
 
-    void release(buffer_type* const buffer)
-    {
-        std::cout << "BufferPool::release" << std::endl;
-        m_pool.destroy(buffer);
-    }
+    b1.dispose();
+    ASSERT_EQ(disposer.lastDisposedBuffer, &b1);
+    ASSERT_EQ(2, disposer.numDisposedBuffers);
 
-protected:
-    virtual void operator() (buffer_type* buffer)
-    {
-        release(buffer);
-    }
-
-private:
-    StaticObjectPool<buffer_type, 10> m_pool;
-};
-
-
-TEST(Pooling, X)
-{
-    BufferPool<256> p;
-    Buffer2* b = p.acquire();
-
-    b->dispose();
-
+    b2.dispose();
+    ASSERT_EQ(disposer.lastDisposedBuffer, &b2);
+    ASSERT_EQ(3, disposer.numDisposedBuffers);
 }
-#endif
+
+TEST(Buffer, push_back)
+{
+    uNet::Buffer2 b;
+    ASSERT_EQ(b.begin(), b.end());
+    ASSERT_EQ(0, b.size());
+
+    {
+        std::uint32_t v = 0x12348765;
+        b.push_back(v);
+        ASSERT_FALSE(b.begin() == b.end());
+        ASSERT_EQ(b.end(), b.begin() + 4);
+        ASSERT_EQ(4, b.size());
+        std::uint32_t w = 0;
+        std::memcpy(&w, b.begin(), sizeof(w));
+        ASSERT_EQ(v, w);
+    }
+
+    {
+        char v = 0xAB;
+        b.push_back(v);
+        ASSERT_EQ(b.end(), b.begin() + 5);
+        ASSERT_EQ(5, b.size());
+        char w = 0;
+        std::memcpy(&w, b.begin() + 4, sizeof(w));
+        ASSERT_EQ(v, w);
+    }
+
+    {
+        double v = 3.141592;
+        b.push_back(v);
+        ASSERT_EQ(b.end(), b.begin() + 13);
+        ASSERT_EQ(13, b.size());
+        double w = 0;
+        std::memcpy(&w, b.begin() + 5, sizeof(w));
+        ASSERT_EQ(v, w);
+    }
+}
+
+TEST(Buffer, push_front)
+{
+    uNet::Buffer2 b;
+    ASSERT_EQ(b.begin(), b.end());
+    ASSERT_EQ(0, b.size());
+
+    {
+        std::uint32_t v = 0x12348765;
+        b.push_front(v);
+        ASSERT_FALSE(b.begin() == b.end());
+        ASSERT_EQ(b.end(), b.begin() + 4);
+        ASSERT_EQ(4, b.size());
+        std::uint32_t w = 0;
+        std::memcpy(&w, b.begin(), sizeof(w));
+        ASSERT_EQ(v, w);
+    }
+
+    {
+        char v = 0xAB;
+        b.push_front(v);
+        ASSERT_EQ(b.end(), b.begin() + 5);
+        ASSERT_EQ(5, b.size());
+        char w = 0;
+        std::memcpy(&w, b.begin(), sizeof(w));
+        ASSERT_EQ(v, w);
+    }
+
+    {
+        double v = 3.141592;
+        b.push_front(v);
+        ASSERT_EQ(b.end(), b.begin() + 13);
+        ASSERT_EQ(13, b.size());
+        double w = 0;
+        std::memcpy(&w, b.begin(), sizeof(w));
+        ASSERT_EQ(v, w);
+    }
+}
