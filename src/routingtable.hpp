@@ -1,7 +1,10 @@
-#ifndef ROUTINGTABLE_HPP
-#define ROUTINGTABLE_HPP
+#ifndef UNET_ROUTINGTABLE_HPP
+#define UNET_ROUTINGTABLE_HPP
 
 #include "networkaddress.hpp"
+
+namespace uNet
+{
 
 class RoutingTable
 {
@@ -11,4 +14,6 @@ public:
 private:
 };
 
-#endif // ROUTINGTABLE_HPP
+} // namespace uNet
+
+#endif // UNET_ROUTINGTABLE_HPP

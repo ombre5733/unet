@@ -1,5 +1,4 @@
 #include "kernel.hpp"
-#include "unetheader.hpp"
 #include "networkinterface.hpp"
 
 #include <atomic>
@@ -7,6 +6,17 @@
 #include <vector>
 
 class MemoryBus;
+
+typedef uNet::Kernel<> Kernel;
+
+using uNet::Buffer;
+using uNet::BufferPool;
+using uNet::HostAddress;
+using uNet::LinkLayerAddress;
+using uNet::NetworkAddress;
+using uNet::NetworkInterface;
+
+using namespace weos;
 
 class MemoryBusInterface : public NetworkInterface
 {
@@ -71,12 +81,12 @@ public:
     }
 
 private:
-    mutex m_mutex;
+    weos::mutex m_mutex;
     std::vector<MemoryBusInterface*> m_interfaces;
 };
 
 MemoryBusInterface::MemoryBusInterface(Kernel* kernel, const std::string& name, MemoryBus *bus)
-    : NetworkInterface(kernel),
+    : NetworkInterface(0),
       m_bus(bus),
       m_name(name),
       m_hasReceivedData(false),
@@ -110,13 +120,19 @@ void MemoryBusInterface::run()
     }
 }
 
+uNet::BufferPool<256, 10> pool;
+
 void MemoryBusInterface::receive(const std::vector<uint8_t> &data)
 {
-    Buffer* b = BufferPool::allocate();
-    b->push_back(m_receiverData.data(), m_receiverData.size());
+    Buffer* b = pool.allocate();
+    for (int i = 0; i < data.size(); ++i)
+    {
+        uint8_t x = data[i];
+        b->push_back(x);
+    }
     std::cout << m_name << " received " << b->size() << " bytes" << std::endl;
-    b->setInterface(this);
-    kernel()->receive(*b);
+    //b->setInterface(this);
+    //kernel()->receive(*b);
 }
 
 void MemoryBusInterface::start()
@@ -141,7 +157,7 @@ void app1(MemoryBus* bus)
     ifc.start();
 
     // Neighbor Advertisment
-    Buffer* b = BufferPool::allocate();
+    Buffer* b = pool.allocate();
     {
         //NeighborSolicitation sol;
         //b.push_front((uint8_t*)&sol, sizeof(sol));
@@ -156,9 +172,9 @@ void app1(MemoryBus* bus)
         */
 
         uint16_t datum = 0x1234;
-        b->push_back((uint8_t*)&datum, sizeof(datum));
+        b->push_back(datum);
     }
-    k.send(0, HostAddress(0x0102), *b);
+    k.send(HostAddress(0x0102), *b);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();
@@ -180,18 +196,6 @@ void app2(MemoryBus* bus)
 
 int main()
 {
-    BufferQueue l1;
-    BufferQueue l2 = BufferQueue();
-    {
-        Buffer* b = BufferPool::allocate();
-        l1.push_back(*b);
-    }
-    {
-        Buffer& b = l1.front();
-        l1.pop_front();
-        l2.push_back(b);
-    }
-
     MemoryBus bus;
 
     std::thread t1(app1, &bus);
