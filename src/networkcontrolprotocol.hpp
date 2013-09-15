@@ -1,6 +1,9 @@
 #ifndef UNET_NETWORKCONTROLPROTOCOL_HPP
 #define UNET_NETWORKCONTROLPROTOCOL_HPP
 
+// Network Control Protocol
+// http://tools.ietf.org/html/rfc4861
+
 /*!
 Network Control Protocol
 
@@ -28,8 +31,8 @@ sub-types.
 
 Neighbor solicitation message
 
-A neighbor solicitation is sent whenever a device needs to query the presence
-of a neighbor on a bus.
+A neighbor solicitation is sent whenever a device needs to verify the
+reachability of another device on the bus or to resolve its link-layer address.
 
 \code
 0                   1                   2                   3
@@ -38,14 +41,17 @@ of a neighbor on a bus.
 |     Type      |     Code      |           Checksum            |
 +---------------+---------------+---------------+---------------+
 |        Target address         |           reserved            |
-+---------------------------------------------------------------+
++---------------+---------------+---------------+---------------+
 \endcode
 
 NCP fields:
     Type    1
     Code    0
 
-The <tt>Target address</tt> is the address of the device which is queried.
+The <tt>Target address</tt> is the address of the device which is solicited.
+
+Only the <tt>Source link-layer address</tt> is allowed as an option in the
+neighbor solicitation message.
 
 
 Neighbor advertisment message
@@ -61,7 +67,7 @@ spontaneously or as a response to a neighbor solicitation.
 |     Type      |     Code      |           Checksum            |
 +---------------+---------------+---------------+---------------+
 |        Target address         |S|         reserved            |
-+---------------------------------------------------------------+
++---------------+---------------+---------------+---------------+
 \endcode
 
 NCP fields:
@@ -73,7 +79,21 @@ response to a neighbor solicitation. It is kept clear, if the advertisment
 has been sent spontaneously (e.g. after a connection to a link has been
 established).
 
+The <tt>Target address</tt> is the same address as in the corresponding
+neighbor solicitation. If the advertisment is sent unsolicited, it is the
+address of the interface which changed its link-layer address.
+
+
+NCP options
+
+
+Source link-layer address option
+
+Target link-layer address option
+
 */
+
+#include "config.hpp"
 
 #include "buffer.hpp"
 #include "networkaddress.hpp"
@@ -143,7 +163,9 @@ struct NetworkControlProtocolOption
         return length * unitByteSize;
     }
 
+    // The type of the NCP option.
     std::uint8_t type;
+    // The length of the NCP option in units of 4 bytes.
     std::uint8_t length;
 };
 
@@ -158,7 +180,7 @@ struct SourceLinkLayerAddress : public NetworkControlProtocolOption
     {
     }
 
-    LinkLayerAddress linkLayerAddress;
+    std::uint8_t linkLayerAddress[sizeof(LinkLayerAddress)];
 };
 
 struct TargetLinkLayerAddress : public NetworkControlProtocolOption
@@ -172,7 +194,7 @@ struct TargetLinkLayerAddress : public NetworkControlProtocolOption
     {
     }
 
-    LinkLayerAddress linkLayerAddress;
+    std::uint8_t linkLayerAddress[sizeof(LinkLayerAddress)];
 };
 
 //! Searches a NCP option inside a range.
