@@ -1,4 +1,4 @@
-#include "../../buffer2.hpp"
+#include "../../buffer.hpp"
 
 #include "gtest/gtest.h"
 
@@ -13,20 +13,20 @@ public:
     {
     }
 
-    virtual void dispose(uNet::Buffer2* buffer)
+    virtual void dispose(uNet::Buffer* buffer)
     {
         lastDisposedBuffer = buffer;
         ++numDisposedBuffers;
     }
 
-    uNet::Buffer2* lastDisposedBuffer;
+    uNet::Buffer* lastDisposedBuffer;
     int numDisposedBuffers;
 };
 
 TEST(Buffer, Initialization)
 {
     {
-        uNet::Buffer2 b;
+        uNet::Buffer b;
         ASSERT_EQ(b.begin(), b.end());
         ASSERT_TRUE(b.disposer() == 0);
         ASSERT_EQ(0, b.size());
@@ -34,7 +34,7 @@ TEST(Buffer, Initialization)
 
     {
         TestBufferDisposer disposer;
-        uNet::Buffer2 b(&disposer);
+        uNet::Buffer b(&disposer);
         ASSERT_EQ(b.begin(), b.end());
         ASSERT_TRUE(b.disposer() == &disposer);
         ASSERT_EQ(0, b.size());
@@ -47,9 +47,9 @@ TEST(Buffer, Initialization)
 TEST(Buffer, dispose)
 {
     TestBufferDisposer disposer;
-    uNet::Buffer2 b1(&disposer);
-    uNet::Buffer2 b2(&disposer);
-    uNet::Buffer2 b3(&disposer);
+    uNet::Buffer b1(&disposer);
+    uNet::Buffer b2(&disposer);
+    uNet::Buffer b3(&disposer);
 
     b3.dispose();
     ASSERT_EQ(disposer.lastDisposedBuffer, &b3);
@@ -66,7 +66,7 @@ TEST(Buffer, dispose)
 
 TEST(Buffer, push_back)
 {
-    uNet::Buffer2 b;
+    uNet::Buffer b;
     ASSERT_EQ(b.begin(), b.end());
     ASSERT_EQ(0, b.size());
 
@@ -104,7 +104,7 @@ TEST(Buffer, push_back)
 
 TEST(Buffer, push_front)
 {
-    uNet::Buffer2 b;
+    uNet::Buffer b;
     ASSERT_EQ(b.begin(), b.end());
     ASSERT_EQ(0, b.size());
 

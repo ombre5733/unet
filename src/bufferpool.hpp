@@ -3,7 +3,7 @@
 
 #include "config.hpp"
 
-#include "buffer2.hpp"
+#include "buffer.hpp"
 
 #include <weos/objectpool.hpp>
 
@@ -14,7 +14,7 @@ template <unsigned TBufferSize, unsigned TNumBuffers>
 class BufferPool : public BufferDisposer
 {
 public:
-    typedef Buffer2 buffer_type; //! \todo Buffer2 should take the size as parameter
+    typedef Buffer buffer_type; //! \todo Buffer2 should take the size as parameter
 
     //! Acquires a buffer from the pool.
     buffer_type* acquire()

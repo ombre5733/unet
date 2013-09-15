@@ -197,7 +197,11 @@ struct TargetLinkLayerAddress : public NetworkControlProtocolOption
     std::uint8_t linkLayerAddress[sizeof(LinkLayerAddress)];
 };
 
-//! Searches a NCP option inside a range.
+//! Searches an NCP option inside a range.
+//! This function takes a range of data delimited by a \p begin and \p end
+//! iterator and searches for an NCP option whose type is specified by the
+//! template parameter \p OptT. If the data contains such an option, a pointer
+//! to it is returned. Otherwise, the function returns a null-pointer.
 template <typename OptT>
 OptT* find(std::uint8_t* begin, std::uint8_t* end)
 {
