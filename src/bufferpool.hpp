@@ -16,8 +16,11 @@ class BufferPool : public BufferDisposer
 public:
     typedef Buffer buffer_type; //! \todo Buffer2 should take the size as parameter
 
-    //! Acquires a buffer from the pool.
-    buffer_type* acquire()
+    //! Allocates a buffer from the pool.
+    //! Allocates a buffer from the pool and returns a pointer to it. If the
+    //! pool is empty, the calling thread is blocked until a buffer has been
+    //! released.
+    buffer_type* allocate()
     {
         return m_pool.construct(this);
     }
@@ -36,9 +39,9 @@ public:
         m_pool.destroy(buffer);
     }
 
-    buffer_type* try_acquire()
+    buffer_type* try_allocate()
     {
-        return acquire();
+        return allocate();
     }
 
 protected:

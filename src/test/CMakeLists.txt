@@ -17,16 +17,15 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(.)
 include_directories(../3rdparty)
 
-#add_executable(unet
-#               ../buffer.cpp
-#               ../buffer2.cpp
+add_executable(unet
+               ../buffer.cpp
 #               ../kernel.cpp
 #               ../neighborcache.cpp
-#               ../networkaddress.cpp
-#               ../networkinterface.cpp
+               ../networkaddress.cpp
+               ../networkinterface.cpp
 #               ../routingtable.cpp
-#               ../main.cpp)
-#target_link_libraries(unet ${Boost_LIBRARIES})
+               ../main.cpp)
+target_link_libraries(unet ${Boost_LIBRARIES})
 
 add_subdirectory(buffer)
 #add_subdirectory(networkaddress)

@@ -184,7 +184,7 @@ public:
     }
 
     //! Prepends data to the buffer.
-    //! Copies \p data to the start of the buffer.
+    //! Copies the \p data to the start of the buffer.
     template <typename TType>
     void push_front(const TType& data)
     {
@@ -210,7 +210,24 @@ private:
     BufferDisposer* m_disposer;
     //! A stack for storing the mementos.
     BufferMementoStack m_mementoStack;
+
+public:
+    typedef boost::intrusive::slist_member_hook<
+        boost::intrusive::link_mode<boost::intrusive::normal_link> >
+        queue_hook_t;
+
+    //! A hook to put this buffer in a BufferQueue.
+    queue_hook_t m_queueHook;
 };
+
+//! A buffer queue.
+typedef boost::intrusive::slist<
+        Buffer,
+        boost::intrusive::member_hook<
+            Buffer,
+            Buffer::queue_hook_t,
+            &Buffer::m_queueHook>,
+        boost::intrusive::cache_last<true> > BufferQueue;
 
 } // namespace uNet
 
