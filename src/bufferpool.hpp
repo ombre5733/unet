@@ -5,7 +5,7 @@
 
 #include "buffer.hpp"
 
-#include <weos/objectpool.hpp>
+#include <OperatingSystem/OperatingSystem.h>
 
 namespace uNet
 {
@@ -39,9 +39,11 @@ public:
         m_pool.destroy(buffer);
     }
 
+    //! Tries to allocate a buffer.
     buffer_type* try_allocate()
     {
-        return allocate();
+        //! \todo This needs to be implemented.
+        return this->allocate();
     }
 
 protected:
@@ -52,7 +54,7 @@ protected:
     }
 
 private:
-    weos::counting_object_pool<buffer_type, TNumBuffers> m_pool;
+    OperatingSystem::counting_object_pool<buffer_type, TNumBuffers> m_pool;
 };
 
 } // namespace uNet

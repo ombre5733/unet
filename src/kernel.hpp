@@ -4,37 +4,18 @@
 #include "config.hpp"
 
 #include "bufferpool.hpp"
+#include "event.hpp"
 #include "networkinterface.hpp"
 
-#include <weos/objectpool.hpp>
-#include <weos/thread.hpp>
+#include <OperatingSystem/OperatingSystem.h>
 
 namespace uNet
 {
 
-class Event
-{
-    enum Type
-    {
-        LinkConnection,
-        LinkConnectionLoss,
-        MessageReceive,
-        MessageSend
-    };
-
-private:
-    Type m_type;
-    Event* m_next;
-
-    union
-    {
-        Buffer* m_buffer;
-    } m_data;
-};
-
 struct default_kernel_traits
 {
-    static const int max_num_events = 20;
+    static const unsigned max_num_events = 20;
+    static const unsigned max_num_interfaces = 10;
 };
 
 template <typename TraitsT = default_kernel_traits>
@@ -43,43 +24,57 @@ class Kernel
 public:
     typedef TraitsT traits_t;
 
-    typedef weos::counting_object_pool<
-                Event, traits_t::max_num_events> event_pool_t;
-
-
+    //! Creates a kernel.
     Kernel();
 
+    //! Register an interface.
     void addInterface(NetworkInterface* ifc);
-    event_pool_t& eventPool();
 
-    void send(HostAddress destination, Buffer& message);
+    //! Sends a buffer.
+    //! Sends the given \p message buffer to the neighbor specified by the
+    //! \p destination address.
+    void send(HostAddress destination, Buffer* message);
 
 private:
     void eventLoop();
 
-    //! A pool for events.
-    event_pool_t m_eventPool;
+    //! The list of events which has to be processed.
+    EventList<traits_t::max_num_events> m_eventList;
 
-    weos::thread m_eventThread;
+    //! A thread to deal with the events.
+    OperatingSystem::thread m_eventThread;
 
     //! The interfaces which have been registered to the kernel.
-    NetworkInterface* m_interfaces[10];
+    NetworkInterface* m_interfaces[traits_t::max_num_interfaces];
 };
 
 template <typename TraitsT>
 Kernel<TraitsT>::Kernel()
+    : m_eventThread()
 {
+    for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
+        m_interfaces[idx] = 0;
 }
 
 template <typename TraitsT>
 void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 {
+    for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
+        if (m_interfaces[idx] == 0)
+        {
+            m_interfaces[idx] = ifc;
+            return;
+        }
 
+    ::uNet::throw_exception(-1);//! \todo system_error()
 }
 
 template <typename TraitsT>
-void Kernel<TraitsT>::send(HostAddress destination, Buffer& message)
+void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
 {
+    m_eventList.push(Event::createMessageSendEvent(message));
+
+
 #if 0
     // Perform a look-up in the destination cache.
     Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);

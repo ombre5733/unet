@@ -174,7 +174,7 @@ void app1(MemoryBus* bus)
         uint16_t datum = 0x1234;
         b->push_back(datum);
     }
-    k.send(HostAddress(0x0102), *b);
+    k.send(HostAddress(0x0102), b);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();
