@@ -4,6 +4,7 @@
 #include "../weos/chrono.hpp"
 #include "../weos/mutex.hpp"
 #include "../weos/objectpool.hpp"
+#include "../weos/semaphore.hpp"
 #include "../weos/thread.hpp"
 
 namespace OperatingSystem
@@ -17,6 +18,9 @@ using weos::mutex;
 
 // objectpool.hpp
 using weos::counting_object_pool;
+
+// semaphore.hpp
+using weos::semaphore;
 
 // thread.hpp
 using weos::thread;
