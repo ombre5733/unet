@@ -17,6 +17,7 @@ using weos::lock_guard;
 using weos::mutex;
 
 // objectpool.hpp
+using weos::object_pool;
 using weos::counting_object_pool;
 
 // semaphore.hpp
