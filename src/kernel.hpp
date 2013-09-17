@@ -72,7 +72,7 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 template <typename TraitsT>
 void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
 {
-    m_eventList.push(Event::createMessageSendEvent(message));
+    m_eventList.enqueue(Event::createMessageSendEvent(message));
 
 
 #if 0
@@ -136,7 +136,14 @@ void Kernel<TraitsT>::eventLoop()
 {
     while (1)
     {
+        Event* event = m_eventList.retrieve();
 
+        if (event->type() == Event::MessageSend)
+        {
+
+        }
+
+        m_eventList.release(event);
     }
 }
 

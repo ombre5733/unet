@@ -6,9 +6,18 @@
 namespace uNet
 {
 
+class RoutingTableEntry
+{
+public:
+};
+
 class RoutingTable
 {
 public:
+    //! Resolves an address.
+    //! Looks up the \p destination address in the routing table and returns
+    //! the host address of the next neighbor, which is the next target for
+    //! the message.
     HostAddress resolve(HostAddress destination) const;
 
 private:

@@ -18,15 +18,34 @@ public:
     //! An enumeration of event types.
     enum Type
     {
+        Invalid,
         LinkConnection,
         LinkConnectionLoss,
         MessageReceive,
         MessageSend
     };
 
-    Event() {}
+    Event()
+        : m_type(Invalid),
+          m_interface(0),
+          m_next(0)
+    {
+    }
 
-    //! Creates an event to send a \p buffer.
+    Event(const Event& other)
+        : m_type(other.m_type),
+          m_interface(other.m_interface),
+          m_next(0)
+    {
+        m_data.m_buffer = other.m_data.m_buffer;
+    }
+
+    Type type() const
+    {
+        return m_type;
+    }
+
+    //! Creates an event for sending a \p buffer.
     static Event createMessageSendEvent(Buffer* buffer)
     {
         Event ev(MessageSend);
@@ -37,18 +56,23 @@ public:
 private:
     explicit Event(Type type)
         : m_type(type),
-          m_interface(0)
+          m_interface(0),
+          m_next(0)
     {
         m_data.m_buffer = 0;
     }
 
     Type m_type;
     NetworkInterface* m_interface;
+    Event* m_next;
 
     union
     {
         Buffer* m_buffer;
     } m_data;
+
+    template <unsigned>
+    friend class EventList;
 };
 
 template <unsigned MaxNumEventsT>
@@ -60,17 +84,47 @@ public:
     {
     }
 
-    void push(Event ev)
+    void enqueue(Event event)
     {
+        Event* ev = m_eventPool.construct(event);
+
         OperatingSystem::lock_guard<OperatingSystem::mutex> locker(m_mutex);
-        if (m_numEvents < MaxNumEventsT)
-            m_events[m_numEvents++] = ev;
+        if (!m_eventList)
+            m_eventList = ev;
+        else
+        {
+            Event* iter = m_eventList;
+            while (iter->m_next)
+                iter = iter->m_next;
+            iter->m_next = ev;
+        }
+        m_numEvents.post();
+    }
+
+    void release(Event* event)
+    {
+        m_eventPool.destroy(event);
+    }
+
+    Event* retrieve()
+    {
+        m_numEvents.wait();
+        OperatingSystem::lock_guard<OperatingSystem::mutex> locker(m_mutex);
+        Event* first = m_eventList;
+        m_eventList = first->m_next;
+        first->m_next = 0;
+        return first;
     }
 
 private:
+    //! A mutex to synchronize accesses to the object.
     OperatingSystem::mutex m_mutex;
-    Event m_events[MaxNumEventsT];
-    unsigned m_numEvents;
+    //! \todo Change this to a list sorted by timeout.
+    Event* m_eventList;
+    //! A pool for allocating events.
+    OperatingSystem::counting_object_pool<Event, MaxNumEventsT> m_eventPool;
+    //! The number of events which have been enqueued in the list.
+    OperatingSystem::semaphore m_numEvents;
 };
 
 } // namespace uNet
