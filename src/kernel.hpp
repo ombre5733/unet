@@ -6,6 +6,7 @@
 #include "bufferpool.hpp"
 #include "event.hpp"
 #include "networkinterface.hpp"
+#include "routingtable.hpp"
 
 #include <OperatingSystem/OperatingSystem.h>
 
@@ -14,8 +15,18 @@ namespace uNet
 
 struct default_kernel_traits
 {
+    //! The maximum length of the kernel's event list.
     static const unsigned max_num_events = 20;
+
+    //! The maximum number of interfaces which can be added to the kernel.
     static const unsigned max_num_interfaces = 10;
+
+    //! The maximum number of neighbors, i.e. devices which can be accessed
+    //! directly on a physical link without the need to route a message. This
+    //! number can be smaller than the real number of neighbors but then
+    //! sending to a neighbor which is not in the cache will create additional
+    //! traffic on the bus.
+    static const unsigned max_num_cached_neighbors = 5;
 };
 
 template <typename TraitsT = default_kernel_traits>
@@ -24,8 +35,11 @@ class Kernel
 public:
     typedef TraitsT traits_t;
 
-    //! Creates a kernel.
+    //! Creates a network kernel.
     Kernel();
+
+    //! Destroys the kernel.
+    ~Kernel() {}
 
     //! Register an interface.
     void addInterface(NetworkInterface* ifc);
@@ -46,6 +60,8 @@ private:
 
     //! The interfaces which have been registered to the kernel.
     NetworkInterface* m_interfaces[traits_t::max_num_interfaces];
+
+    RoutingTable m_routingTable;
 };
 
 template <typename TraitsT>
@@ -87,11 +103,13 @@ void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
         sendToNeighbor(nextHopInfo, message);
         return;
     }
-
+#endif
     // We have not found an entry in the destination cache. The next step is to
     // consult the routing table, which will map the destination address to
     // the one of the next neighbor.
     HostAddress routedDestination = m_routingTable.resolve(destination);
+
+#if 0
     nextHopInfo = m_nextHopCache.lookupNeighbor(routedDestination);
     if (nextHopInfo)
     {
@@ -103,7 +121,6 @@ void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
         sendToNeighbor(nextHopInfo, message);
         return;
     }
-
     // This neighbor has never been used before. We have to loop over all
     // interfaces and look for one which is in the target's subnet.
     for (size_t idx = 0; idx < m_interfaces.size(); ++idx)
