@@ -5,6 +5,7 @@
 
 namespace uNet
 {
+class Neighbor;
 
 class RoutingTableEntry
 {

@@ -11,7 +11,7 @@ class NetworkInterface;
 
 //! A kernel event.
 //! The Event is a happening in time inside the kernel or its associated
-//! components.
+//! components. The kernel keeps a list of events which have to be processed.
 class Event
 {
 public:
