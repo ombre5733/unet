@@ -15,6 +15,18 @@ class NetworkInterface;
 //! A Neighbor object stores the available information about a neighbor, which
 //! is a device which can be directly accessed on a physical link without
 //! the need of routing a message through a device.
+//!
+//! The Neighbor class combines the host address (the logical address) of a
+//! device with its link-layer address (its physical address). This information
+//! is important for sending a message over a physical link as the link has
+//! to address the receiver with its link-layer address rather than its
+//! logical address.
+//!
+//! If neighbor discovery is in progress, no messages must be sent to a
+//! neighbor. For this purpose, every neighbor keeps a list of pending messages
+//! which have to be sent when the neighbor is known to be reachable. If
+//! the reachability cannot be determined within a certain time, the messages
+//! must be dropped.
 class Neighbor
 {
 public:
@@ -30,6 +42,7 @@ public:
 
     Neighbor()
         : m_interface(0),
+          m_neighborCacheHook(0),
           m_state(Incomplete)
     {
     }
@@ -82,8 +95,11 @@ private:
     NetworkInterface* m_interface;
     //! The link-layer address of the neighbor.
     LinkLayerAddress m_linkLayerAddress;
+    //! The next neighbor in the cache.
+    Neighbor* m_neighborCacheHook;
     //! A list of messages which have been queued for sending.
     BufferQueue m_sendQueue;
+
 
     State m_state;
 };
