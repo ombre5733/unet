@@ -23,7 +23,7 @@ add_executable(unet
 #               ../neighborcache.cpp
                ../networkaddress.cpp
                ../networkinterface.cpp
-#               ../routingtable.cpp
+               ../routingtable.cpp
                ../main.cpp)
 target_link_libraries(unet ${Boost_LIBRARIES})
 

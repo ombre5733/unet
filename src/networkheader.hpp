@@ -38,6 +38,6 @@ struct NetworkHeader
     static const std::uint8_t maxHopCount = 15;
 };
 
-} namespace uNet
+} // namespace uNet
 
 #endif // UNET_NETWORKHEADER_HPP

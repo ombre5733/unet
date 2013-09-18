@@ -5,6 +5,7 @@
 
 #include "bufferpool.hpp"
 #include "event.hpp"
+#include "networkheader.hpp"
 #include "networkinterface.hpp"
 #include "routingtable.hpp"
 
@@ -23,9 +24,9 @@ struct default_kernel_traits
 
     //! The maximum number of neighbors, i.e. devices which can be accessed
     //! directly on a physical link without the need to route a message. This
-    //! number can be smaller than the real number of neighbors but then
-    //! sending to a neighbor which is not in the cache will create additional
-    //! traffic on the bus.
+    //! number can be smaller than the real number of neighbors. However,
+    //! remember that sending to a neighbor which is not in the cache will
+    //! create latency and traffic on the bus.
     static const unsigned max_num_cached_neighbors = 5;
 };
 
@@ -88,7 +89,7 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 template <typename TraitsT>
 void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
 {
-    m_eventList.enqueue(Event::createMessageSendEvent(message));
+    //m_eventList.enqueue(Event::createMessageSendEvent(message));
 
 
 #if 0
@@ -121,31 +122,45 @@ void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
         sendToNeighbor(nextHopInfo, message);
         return;
     }
+#endif
+
     // This neighbor has never been used before. We have to loop over all
     // interfaces and look for one which is in the target's subnet.
-    for (size_t idx = 0; idx < m_interfaces.size(); ++idx)
+    for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
     {
-        NetworkInterface* interface = m_interfaces[idx];
-        if (routedDestination.isInSubnet(interface->networkAddress()))
+        NetworkInterface* ifc = m_interfaces[idx];
+        if (!ifc)
+            break;
+
+        if (routedDestination.isInSubnet(ifc->networkAddress()))
         {
+            /*
             nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
-                              routedDestination, interface);
+                              routedDestination, ifc);
+                              */
 
-            UnetHeader header;
+            // Add the network header and put the message in the neighbor's
+            // queue.
+            NetworkHeader header;
             header.destinationAddress = destination;
-            header.sourceAddress = nextHopInfo->interface()->networkAddress().hostAddress();
-            message.push_front((uint8_t*)&header, sizeof(header));
-            // Enqueue the packet in the neighbor info.
-            sendToNeighbor(nextHopInfo, message);
+            header.sourceAddress = ifc->networkAddress().hostAddress();
+            message->push_front(header);
+            //sendToNeighbor(nextHopInfo, message);
 
-            sendNeighborSolicitation(interface, routedDestination);
+            // Send out a neighbor solicitation.
+            //sendNeighborSolicitation(ifc, routedDestination);
+
+            // --- HACK
+            ifc->send(LinkLayerAddress(), *message);
+            // --- END OF HACK
+
             return;
         }
     }
 
     // Cannot find a route for this packet.
     // diagnostics.unknownRoute(destAddr);
-#endif
+    message->dispose();
 }
 
 template <typename TraitsT>
