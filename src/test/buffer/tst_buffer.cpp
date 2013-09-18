@@ -102,7 +102,7 @@ TEST(Buffer, push_back)
     }
 }
 
-TEST(Buffer, push_front)
+TEST(Buffer, push_and_pop_from_front)
 {
     uNet::Buffer b;
     ASSERT_EQ(b.begin(), b.end());
@@ -137,5 +137,20 @@ TEST(Buffer, push_front)
         double w = 0;
         std::memcpy(&w, b.begin(), sizeof(w));
         ASSERT_EQ(v, w);
+    }
+
+    {
+        double v = b.pop_front<double>();
+        ASSERT_EQ(3.141592, v);
+    }
+
+    {
+        char v = b.pop_front<char>();
+        ASSERT_EQ(0xAB, v);
+    }
+
+    {
+        std::uint32_t v = b.pop_front<std::uint32_t>();
+        ASSERT_EQ(0x12348765, v);
     }
 }

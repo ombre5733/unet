@@ -171,16 +171,26 @@ public:
         return m_end;
     }
 
+    template <typename TType>
+    TType pop_front()
+    {
+        UNET_ASSERT(m_begin + sizeof(TType) <= m_end);
+        TType temp;
+        std::memcpy(&temp, m_begin, sizeof(TType));
+        m_begin += sizeof(TType);
+        return temp;
+    }
+
     //! Adds data at the end of the buffer.
     //! Copies the given \p data at the end of the buffer.
     template <typename TType>
     void push_back(const TType& data)
     {
-        UNET_ASSERT(m_end + sizeof(data)
+        UNET_ASSERT(m_end + sizeof(TType)
                     <= static_cast<std::uint8_t*>(m_data.address())
                        + BUFFER_SIZE);
-        std::memcpy(m_end, &data, sizeof(data));
-        m_end += sizeof(data);
+        std::memcpy(m_end, &data, sizeof(TType));
+        m_end += sizeof(TType);
     }
 
     //! Prepends data to the buffer.
@@ -188,9 +198,9 @@ public:
     template <typename TType>
     void push_front(const TType& data)
     {
-        m_begin -= sizeof(data);
+        m_begin -= sizeof(TType);
         UNET_ASSERT(m_begin >= static_cast<std::uint8_t*>(m_data.address()));
-        std::memcpy(m_begin, &data, sizeof(data));
+        std::memcpy(m_begin, &data, sizeof(TType));
     }
 
     //! Returns the size of the buffer.
