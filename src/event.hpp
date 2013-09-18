@@ -45,6 +45,11 @@ public:
         return m_type;
     }
 
+    Buffer* buffer() const
+    {
+        return m_data.m_buffer;
+    }
+
     //! Creates an event for sending a \p buffer.
     static Event createMessageSendEvent(Buffer* buffer)
     {
@@ -125,6 +130,28 @@ private:
     OperatingSystem::counting_object_pool<Event, MaxNumEventsT> m_eventPool;
     //! The number of events which have been enqueued in the list.
     OperatingSystem::semaphore m_numEvents;
+};
+
+//! A helper to release an event from an event list.
+//! The EventReleaser releases an event from an event list in its destructor.
+template <typename ElementListT>
+class EventReleaser
+{
+public:
+    EventReleaser(ElementListT& list, Event& event)
+        : m_eventList(list),
+          m_event(event)
+    {
+    }
+
+    ~EventReleaser()
+    {
+        m_eventList.release(&m_event);
+    }
+
+private:
+    ElementListT& m_eventList;
+    Event& m_event;
 };
 
 } // namespace uNet
