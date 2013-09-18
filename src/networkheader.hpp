@@ -6,7 +6,10 @@
 namespace uNet
 {
 
-// The uNet network protocol has the following header
+// The uNet network protocol carries enough information to route data from one
+// device in the network to another. It has the following header
+//
+// \code
 // 0                   1                   2                   3
 // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -14,6 +17,14 @@ namespace uNet
 // +-------+-------+---------------+---------------+---------------+
 // |            Source             |          Destination          |
 // +---------------+---------------+---------------+---------------+
+// \endcode
+//
+// The \p Version is the protocol version. The \p HopCnt field is decremented
+// whenever the message is routed. If the \p HopCnt is zero, the message is
+// not routed any longer but is dropped by the kernel. The \p Length is the
+// total length of the message including this header. The \p Source and
+// \p Destination fields contain the source and destination addresses of the
+// message.
 
 struct NetworkHeader
 {
