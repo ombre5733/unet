@@ -43,6 +43,7 @@ public:
     ~Kernel() {}
 
     //! Register an interface.
+    //! Registers the interface \p ifc in the kernel.
     void addInterface(NetworkInterface* ifc);
 
     //! Sends a buffer.
@@ -191,8 +192,10 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
     }
 #endif
 
-    // This neighbor has never been used before. We have to loop over all
-    // interfaces and look for one which is in the target's subnet.
+    // We have not sent anything to this neighor, yet, or the neighbor has
+    // been removed from the cache.
+    // We have to loop over all interfaces and look for one which is in the
+    // target's subnet.
     for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
     {
         NetworkInterface* ifc = m_interfaces[idx];
