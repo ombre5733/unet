@@ -31,7 +31,7 @@ struct default_kernel_traits
 };
 
 template <typename TraitsT = default_kernel_traits>
-class Kernel
+class Kernel : public NetworkInterfaceListener
 {
 public:
     typedef TraitsT traits_t;
@@ -50,11 +50,13 @@ public:
     //! \p destination address.
     void send(HostAddress destination, Buffer* message);
 
-private:
-    void eventLoop();
+    //! \reimp
+    virtual void notify(Event event) {}
 
+private:
+    typedef EventList<traits_t::max_num_events> event_list_t;
     //! The list of events which has to be processed.
-    EventList<traits_t::max_num_events> m_eventList;
+    event_list_t m_eventList;
 
     //! A thread to deal with the events.
     OperatingSystem::thread m_eventThread;
@@ -63,6 +65,11 @@ private:
     NetworkInterface* m_interfaces[traits_t::max_num_interfaces];
 
     RoutingTable m_routingTable;
+
+
+    void eventLoop();
+    void handleMessageReceiveEvent(const Event& event);
+    void handleMessageSendEvent(const Event& event);
 };
 
 template <typename TraitsT>
@@ -89,9 +96,67 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 template <typename TraitsT>
 void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
 {
-    //m_eventList.enqueue(Event::createMessageSendEvent(message));
+    message->push_front(destination);
+    m_eventList.enqueue(Event::createMessageSendEvent(message));
+}
 
+template <typename TraitsT>
+void Kernel<TraitsT>::eventLoop()
+{
+    while (1)
+    {
+        Event event = m_eventList.retrieve();
 
+        if (event.type() == Event::MessageReceive)
+        {
+            handleMessageReceiveEvent(event);
+        }
+        else if (event.type() == Event::MessageSend)
+        {
+            handleMessageSendEvent(event);
+        }
+        else
+        {
+            //m_eventList.release(event);
+        }
+    }
+}
+
+// ----=====================================================================----
+//     Private methods
+// ----=====================================================================----
+
+template <typename TraitsT>
+void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
+{
+    Buffer* message = event.buffer();
+    // Throw away malformed messages.
+    if (message->size() < sizeof(NetworkHeader))
+        return;
+    UNET_ASSERT(event.networkInterface() != 0);
+
+    const NetworkHeader* header
+            = reinterpret_cast<const NetworkHeader*>(message->begin());
+
+    HostAddress destAddr(header->destinationAddress);
+    if (destAddr == event.networkInterface()->networkAddress().hostAddress()
+        || destAddr.multicast())
+    {
+        // The packet belongs to the interface and as such it needs to be
+        // dispatched.
+        //protocol_t::dispatch(header, message);
+    }
+    else
+    {
+        // The packet has to be routed.
+
+    }
+}
+
+template <typename TraitsT>
+void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
+{
+    Buffer* message = event.buffer();
 #if 0
     // Perform a look-up in the destination cache.
     Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);
@@ -105,6 +170,8 @@ void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
         return;
     }
 #endif
+    HostAddress destination = message->pop_front<HostAddress>();
+
     // We have not found an entry in the destination cache. The next step is to
     // consult the routing table, which will map the destination address to
     // the one of the next neighbor.
@@ -161,22 +228,6 @@ void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
     // Cannot find a route for this packet.
     // diagnostics.unknownRoute(destAddr);
     message->dispose();
-}
-
-template <typename TraitsT>
-void Kernel<TraitsT>::eventLoop()
-{
-    while (1)
-    {
-        Event* event = m_eventList.retrieve();
-
-        if (event->type() == Event::MessageSend)
-        {
-
-        }
-
-        m_eventList.release(event);
-    }
 }
 
 } // namespace uNet

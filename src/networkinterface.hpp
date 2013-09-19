@@ -4,14 +4,10 @@
 #include "buffer.hpp"
 #include "linklayeraddress.hpp"
 #include "networkaddress.hpp"
+#include "networkinterfacelistener.hpp"
 
 namespace uNet
 {
-
-class NetworkInterfaceListener
-{
-public:
-};
 
 //! A network interface.
 //! The network interface is the object which connects the network to the

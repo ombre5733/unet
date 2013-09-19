@@ -45,11 +45,28 @@ public:
         return m_type;
     }
 
+    NetworkInterface* networkInterface() const
+    {
+        return m_interface;
+    }
+
     Buffer* buffer() const
     {
         return m_data.m_buffer;
     }
 
+    //! Creates a message receive event.
+    //! Creates an event to signal the reception of a \p buffer.
+    static Event createMessageReceiveEvent(NetworkInterface* ifc,
+                                           Buffer* buffer)
+    {
+        Event ev(MessageReceive);
+        ev.m_interface = ifc;
+        ev.m_data.m_buffer = buffer;
+        return ev;
+    }
+
+    //! Creates a message send event.
     //! Creates an event for sending a \p buffer.
     static Event createMessageSendEvent(Buffer* buffer)
     {
@@ -80,6 +97,8 @@ private:
     friend class EventList;
 };
 
+//! An event list.
+//! The EventList is a list of events.
 template <unsigned MaxNumEventsT>
 class EventList
 {
@@ -89,6 +108,8 @@ public:
     {
     }
 
+    //! Adds an event.
+    //! Adds the \p event to the list.
     void enqueue(Event event)
     {
         Event* ev = m_eventPool.construct(event);
@@ -111,7 +132,7 @@ public:
         m_eventPool.destroy(event);
     }
 
-    Event* retrieve()
+    Event retrieve()
     {
         m_numEvents.wait();
         OperatingSystem::lock_guard<OperatingSystem::mutex> locker(m_mutex);
@@ -134,10 +155,27 @@ private:
 
 //! A helper to release an event from an event list.
 //! The EventReleaser releases an event from an event list in its destructor.
+//! A typical use case is
+//! \code
+//! EventList list;
+//! Event* event = list.retrieve();
+//!
+//! // Remove the event from the list when we have dispatched it.
+//! EventReleaser releaser(list, *event);
+//! if (event->type() == ...)
+//! {
+//!    // Handle this event type.
+//! }
+//! else if (event->type() == ...)
+//! {
+//!    // Handle another event type.
+//! }
+//! \endcode
 template <typename ElementListT>
 class EventReleaser
 {
 public:
+    //! Creates an event releaser.
     EventReleaser(ElementListT& list, Event& event)
         : m_eventList(list),
           m_event(event)
