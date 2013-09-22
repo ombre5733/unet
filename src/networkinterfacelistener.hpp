@@ -13,7 +13,9 @@ class BufferBase;
 class NetworkInterfaceListener
 {
 public:
-    virtual BufferBase* allocate_buffer() = 0;
+    //! Allocates a buffer.
+    //! Allocates a buffer and returns a pointer to it.
+    virtual BufferBase* allocateBuffer() = 0;
 
     //! Notifies the listener.
     //! Notifies the listener about an \p event. This method is called by

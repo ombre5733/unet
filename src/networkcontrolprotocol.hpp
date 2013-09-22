@@ -119,6 +119,8 @@ struct NetworkControlProtocolHeader
 
 struct NeighborSolicitation
 {
+    static const int ncpType = 1;
+
     NeighborSolicitation()
         : header(1),
           reserved(0)
@@ -132,6 +134,8 @@ struct NeighborSolicitation
 
 struct NeighborAdvertisment
 {
+    static const int ncpType = 2;
+
     NeighborAdvertisment()
         : header(2),
           solicited(false),
@@ -150,7 +154,7 @@ namespace NcpOption
 
 struct NetworkControlProtocolOption
 {
-    const static int unitByteSize = 4;
+    static const int unitByteSize = 4;
 
     NetworkControlProtocolOption(std::uint8_t _type, std::uint8_t _length)
         : type(_type),
@@ -171,7 +175,7 @@ struct NetworkControlProtocolOption
 
 struct SourceLinkLayerAddress : public NetworkControlProtocolOption
 {
-    const static int ncpOptionType = 1;
+    static const int ncpOptionType = 1;
 
     SourceLinkLayerAddress()
         : NetworkControlProtocolOption(
@@ -185,7 +189,7 @@ struct SourceLinkLayerAddress : public NetworkControlProtocolOption
 
 struct TargetLinkLayerAddress : public NetworkControlProtocolOption
 {
-    const static int ncpOptionType = 2;
+    static const int ncpOptionType = 2;
 
     TargetLinkLayerAddress()
         : NetworkControlProtocolOption(
@@ -223,7 +227,7 @@ OptT* find(std::uint8_t* begin, std::uint8_t* end)
 class NetworkControlProtocolMessageBuilder
 {
 public:
-    NetworkControlProtocolMessageBuilder(Buffer& buffer)
+    NetworkControlProtocolMessageBuilder(BufferBase& buffer)
         : m_buffer(buffer)
     {
     }
@@ -235,7 +239,7 @@ public:
         NeighborAdvertisment advertisment;
         advertisment.targetAddress = targetAddress;
         advertisment.solicited = solicited;
-        m_buffer.push_back((std::uint8_t*)&advertisment, sizeof(advertisment));
+        m_buffer.push_back(advertisment);
     }
 
     //! Creates a neighbor solicitation message.
@@ -243,32 +247,34 @@ public:
     {
         NeighborSolicitation solicitation;
         solicitation.targetAddress = targetAddress;
-        m_buffer.push_back((std::uint8_t*)&solicitation, sizeof(solicitation));
+        m_buffer.push_back(solicitation);
     }
 
     //! Adds a source link-layer address option.
     void addSourceLinkLayerAddressOption(LinkLayerAddress linkLayerAddress)
     {
         NcpOption::SourceLinkLayerAddress llaOpt;
-        llaOpt.linkLayerAddress = linkLayerAddress;
-        m_buffer.push_back((std::uint8_t*)&llaOpt, sizeof(llaOpt));
+        //llaOpt.linkLayerAddress = linkLayerAddress;
+        while (1);
+        m_buffer.push_back(llaOpt);
     }
 
     //! Adds a target link-layer address option.
     void addTargetLinkLayerAddressOption(LinkLayerAddress linkLayerAddress)
     {
         NcpOption::TargetLinkLayerAddress llaOpt;
-        llaOpt.linkLayerAddress = linkLayerAddress;
-        m_buffer.push_back((std::uint8_t*)&llaOpt, sizeof(llaOpt));
+        //llaOpt.linkLayerAddress = linkLayerAddress;
+        while (1);
+        m_buffer.push_back(llaOpt);
     }
 
 private:
     //! The buffer in which the message will be built.
-    Buffer& m_buffer;
+    BufferBase& m_buffer;
 };
 
 
-
+#if 0
 class UnetHeader;
 
 template <typename DerivedT>
@@ -353,6 +359,9 @@ private:
         return static_cast<const DerivedT*>(this);
     }
 };
+#endif
+
+
 
 } // namespace uNet
 

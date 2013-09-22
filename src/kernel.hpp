@@ -5,15 +5,19 @@
 
 #include "bufferpool.hpp"
 #include "event.hpp"
+#include "networkcontrolprotocol.hpp"
 #include "networkheader.hpp"
 #include "networkinterface.hpp"
 #include "routingtable.hpp"
 
 #include <OperatingSystem/OperatingSystem.h>
 
+#include "neighborcache.hpp"
 namespace uNet
 {
-
+//! The default kernel traits.
+//! These traits define the behaviour of the kernel when no other traits
+//! are provided by the user.
 struct default_kernel_traits
 {
     //! The size of one buffer in bytes.
@@ -61,15 +65,22 @@ public:
     void send(HostAddress destination, BufferBase* message);
 
     //! \reimp
-    virtual BufferBase* allocate_buffer()
+    virtual BufferBase* allocateBuffer()
     {
         return m_bufferPool.allocate();
     }
 
     //! \reimp
-    virtual void notify(Event event) {}
+    virtual void notify(Event event)
+    {
+        m_eventList.enqueue(event);
+    }
+
+    //! \todo HACK: Remove this again.
+    void (*messageReceivedCallback)(BufferBase* buf);
 
 private:
+    //! The type of the buffer pool.
     typedef BufferPool<traits_t::buffer_size,
                        traits_t::max_num_buffers> buffer_pool_t;
     //! The pool from which buffers are allocated.
@@ -90,12 +101,18 @@ private:
     void eventLoop();
     void handleMessageReceiveEvent(const Event& event);
     void handleMessageSendEvent(const Event& event);
+    void sendNeighborSolicitation(NetworkInterface* ifc, HostAddress destAddr);
+
+    //! \todo This needs to be combined with a destination cache and the routing table.
+    NeighborCache<traits_t::max_num_cached_neighbors> nc;
 };
 
 template <typename TraitsT>
 Kernel<TraitsT>::Kernel()
     : m_eventThread(&Kernel::eventLoop, this)
 {
+    messageReceivedCallback = 0;
+
     for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
         m_interfaces[idx] = 0;
 }
@@ -175,11 +192,20 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
         // The packet belongs to the interface and as such it needs to be
         // dispatched.
         //protocol_t::dispatch(header, message);
+        if (header->nextHeader == 1)
+        {
+            // This is an NCP message.
+            std::cout << "<Kernel> Received an NCP message " << int(header->sourceAddress) << std::endl;
+        }
+        else
+        {
+            if (messageReceivedCallback)
+                messageReceivedCallback(event.buffer());
+        }
     }
     else
     {
         // The packet has to be routed.
-
     }
 }
 
@@ -207,10 +233,10 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
     // the one of the next neighbor.
     HostAddress routedDestination = m_routingTable.resolve(destination);
 
-#if 0
-    nextHopInfo = m_nextHopCache.lookupNeighbor(routedDestination);
-    if (nextHopInfo)
+    Neighbor* cachedNeighbor = nc.find(routedDestination);
+    if (cachedNeighbor)
     {
+#if 0
         UnetHeader header;
         header.destinationAddress = destination;
         header.sourceAddress = nextHopInfo->interface()->networkAddress().hostAddress();
@@ -218,8 +244,8 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
         //m_nextHopCache.cacheDestination(destAddr, nextHopInfo);
         sendToNeighbor(nextHopInfo, message);
         return;
-    }
 #endif
+    }
 
     // We have not sent anything to this neighor, yet, or the neighbor has
     // been removed from the cache.
@@ -233,6 +259,7 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
 
         if (routedDestination.isInSubnet(ifc->networkAddress()))
         {
+            cachedNeighbor = nc.createEntry(routedDestination, ifc);
             /*
             nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
                               routedDestination, ifc);
@@ -241,16 +268,16 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
             // Add the network header and put the message in the neighbor's
             // queue.
             NetworkHeader header;
-            header.destinationAddress = destination;
             header.sourceAddress = ifc->networkAddress().hostAddress();
+            header.destinationAddress = destination;
             message->push_front(header);
-            //sendToNeighbor(nextHopInfo, message);
+            cachedNeighbor->sendQueue().push_back(*message);
 
             // Send out a neighbor solicitation.
-            //sendNeighborSolicitation(ifc, routedDestination);
+            sendNeighborSolicitation(ifc, routedDestination);
 
             // --- HACK
-            ifc->send(LinkLayerAddress(), *message);
+            //ifc->send(LinkLayerAddress(), *message);
             // --- END OF HACK
 
             return;
@@ -260,6 +287,36 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
     // Cannot find a route for this packet.
     // diagnostics.unknownRoute(destAddr);
     message->dispose();
+}
+
+template <typename TraitsT>
+void Kernel<TraitsT>::sendNeighborSolicitation(NetworkInterface* ifc,
+                                               HostAddress destAddr)
+{
+    BufferBase* b = allocateBuffer();
+
+    NetworkControlProtocolMessageBuilder builder(*b);
+    builder.createNeighborSolicitation(destAddr);
+
+    //! \todo: Add the link-layer address of the sender
+    //builder.addSourceLinkLayerAddressOption();
+
+    NetworkHeader header;
+    header.sourceAddress = ifc->networkAddress().hostAddress();
+    header.destinationAddress = HostAddress::multicastAddress();
+    header.nextHeader = 1;
+    b->push_front(header);
+
+    std::pair<bool, LinkLayerAddress> lla
+            = ifc->neighborLinkLayerAddress(destAddr);
+    if (lla.first)
+    {
+        ifc->send(lla.second, *b);
+    }
+    else
+    {
+        ifc->broadcast(*b);
+    }
 }
 
 } // namespace uNet

@@ -121,15 +121,13 @@ void MemoryBusInterface::run()
 
 void MemoryBusInterface::receive(const std::vector<uint8_t> &data)
 {
-    BufferBase* b = listener()->allocate_buffer();
+    BufferBase* b = listener()->allocateBuffer();
     for (int i = 0; i < data.size(); ++i)
     {
         uint8_t x = data[i];
         b->push_back(x);
     }
-    std::cout << m_name << " received " << b->size() << " bytes" << std::endl;
-    //b->setInterface(this);
-    //kernel()->receive(*b);
+    listener()->notify(uNet::Event::createMessageReceiveEvent(this, b));
 }
 
 void MemoryBusInterface::start()
@@ -143,7 +141,10 @@ void MemoryBusInterface::stop()
     m_receiverThread.join();
 }
 
-void app1(MemoryBus* bus)
+namespace app1
+{
+
+void main(MemoryBus* bus)
 {
     std::cout << "app1 started" << std::endl;
 
@@ -154,7 +155,7 @@ void app1(MemoryBus* bus)
     ifc.start();
 
     // Neighbor Advertisment
-    BufferBase* b = k.allocate_buffer();
+    BufferBase* b = k.allocateBuffer();
     {
         //NeighborSolicitation sol;
         //b.push_front((uint8_t*)&sol, sizeof(sol));
@@ -177,11 +178,23 @@ void app1(MemoryBus* bus)
     ifc.stop();
 }
 
-void app2(MemoryBus* bus)
+} // namespace app1
+
+namespace app2
+{
+
+void handleMessage(BufferBase* b)
+{
+    std::cout << "[app2] received " << b->size() << " bytes" << std::endl;
+}
+
+void main(MemoryBus* bus)
 {
     std::cout << "app2 started" << std::endl;
 
     Kernel k;
+    k.messageReceivedCallback = handleMessage;
+
     MemoryBusInterface ifc(&k, "IF2", bus);
     ifc.setNetworkAddress(NetworkAddress(0x0102, 0xFF00));
     k.addInterface(&ifc);
@@ -191,12 +204,14 @@ void app2(MemoryBus* bus)
     ifc.stop();
 }
 
+} // namespace app2
+
 int main()
 {
     MemoryBus bus;
 
-    std::thread t1(app1, &bus);
-    std::thread t2(app2, &bus);
+    std::thread t1(app1::main, &bus);
+    std::thread t2(app2::main, &bus);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 

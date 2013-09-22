@@ -95,7 +95,7 @@ public:
             HostAddress address) const;
 
     //! Returns the network address.
-    //! Returns the logical address which has been set for this interface
+    //! Returns the logical address which has been set for this interface.
     NetworkAddress networkAddress() const
     {
         return m_networkAddress;

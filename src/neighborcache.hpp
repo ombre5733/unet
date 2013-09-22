@@ -18,14 +18,39 @@ template <unsigned MaxNumNeighborsT>
 class NeighborCache
 {
 public:
-    //Neighbor* find(HostAddress address) const;
+    //! Creates a neighbor cache.
+    NeighborCache()
+        : m_neighbors(0)
+    {
+    }
+
+    Neighbor* createEntry(HostAddress address, NetworkInterface* ifc)
+    {
+        Neighbor* entry = m_neighborPool.construct(address, ifc);
+        entry->m_neighborCacheHook = m_neighbors;
+        m_neighbors = entry;
+        return entry;
+    }
+
+    Neighbor* find(HostAddress address) const
+    {
+        Neighbor* iter = m_neighbors;
+        while (iter)
+        {
+            if (iter->address() == address)
+                return iter;
+            iter = iter->m_neighborCacheHook;
+        }
+        return 0;
+    }
+
     // void update(HostAddress address);
 
 private:
     //! The first neighbor in the list.
     Neighbor* m_neighbors;
 
-    typedef OperatingSystem::object_pool<Neighbor, MaxNumNeighborsT, null_mutex>
+    typedef OperatingSystem::object_pool<Neighbor, MaxNumNeighborsT>
         pool_t;
     //! The pool for the allocation of neighbors.
     pool_t m_neighborPool;

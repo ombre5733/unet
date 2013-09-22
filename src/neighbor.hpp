@@ -42,8 +42,8 @@ public:
 
     Neighbor()
         : m_interface(0),
-          m_neighborCacheHook(0),
-          m_state(Incomplete)
+          m_state(Incomplete),
+          m_neighborCacheHook(0)
     {
     }
 
@@ -95,13 +95,15 @@ private:
     NetworkInterface* m_interface;
     //! The link-layer address of the neighbor.
     LinkLayerAddress m_linkLayerAddress;
-    //! The next neighbor in the cache.
-    Neighbor* m_neighborCacheHook;
     //! A list of messages which have been queued for sending.
     BufferQueue m_sendQueue;
 
 
     State m_state;
+
+public:
+    //! The next neighbor in the cache.
+    Neighbor* m_neighborCacheHook;
 };
 
 } // namespace uNet
