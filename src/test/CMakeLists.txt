@@ -18,7 +18,6 @@ include_directories(.)
 include_directories(../3rdparty)
 
 add_executable(unet
-               ../buffer.cpp
 #               ../kernel.cpp
 #               ../neighborcache.cpp
                ../networkaddress.cpp
