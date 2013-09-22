@@ -13,9 +13,9 @@ public:
     {
     }
 
-    virtual void dispose(uNet::Buffer* buffer)
+    virtual void dispose(uNet::BufferBase* buffer)
     {
-        lastDisposedBuffer = buffer;
+        lastDisposedBuffer = static_cast<uNet::Buffer*>(buffer);
         ++numDisposedBuffers;
     }
 
@@ -146,7 +146,7 @@ TEST(Buffer, push_and_pop_from_front)
 
     {
         char v = b.pop_front<char>();
-        ASSERT_EQ(0xAB, v);
+        ASSERT_EQ(char(0xAB), v);
     }
 
     {

@@ -5,6 +5,7 @@
 
 #include <boost/intrusive/slist.hpp>
 #include <boost/type_traits.hpp>
+#include <boost/utility.hpp>
 
 #include <cstdint>
 #include <cstring>
@@ -18,7 +19,7 @@
 namespace uNet
 {
 
-class Buffer;
+class BufferBase;
 
 //! A buffer grabber.
 //! A BufferGrabber is an object which can take the ownership of a Buffer
@@ -28,7 +29,7 @@ class Buffer;
 class BufferGrabber
 {
 public:
-    virtual void grab(Buffer& buffer) = 0;
+    virtual void grab(BufferBase& buffer) = 0;
 };
 
 //! A memento for storing some buffer state.
@@ -85,7 +86,7 @@ private:
     //! A pointer back to the pool from which this hook was allocated.
     void* m_pool;
 
-    friend class Buffer;
+    friend class BufferBase;
 };
 
 //! A stack of buffer mementos.
@@ -108,25 +109,16 @@ class BufferDisposer
 public:
     //! Disposes a buffer.
     //! Disposes the given \p buffer.
-    virtual void dispose(Buffer* buffer) = 0;
+    virtual void dispose(BufferBase* buffer) = 0;
 };
 
-class Buffer
+class BufferBase : boost::noncopyable
 {
 public:
-    static const int BUFFER_SIZE = 256; //! \todo Add this as template parameter?
-
-    //! Creates a buffer.
-    //! Creates a buffer which will be destroyed via the buffer \p disposer.
-    //! The disposer may be a null-pointer in which case it is never invoked.
-    explicit Buffer(BufferDisposer* disposer = 0)
+    BufferBase(std::uint8_t* storageBegin, BufferDisposer* disposer = 0)
         : m_disposer(disposer)
     {
-        m_begin = m_end = static_cast<std::uint8_t*>(m_data.address()) + 32;
-    }
-
-    ~Buffer()
-    {
+        m_begin = m_end = storageBegin + 32;
     }
 
     //! Adds a memento to the buffer.
@@ -137,6 +129,10 @@ public:
         memento.m_end = m_end;
         m_mementoStack.push_front(memento);
     }
+
+    //! Returns the buffer's capacity.
+    //! Returns the number of bytes which the buffer can hold.
+    virtual std::size_t capacity() const = 0;
 
     //! Returns the buffer disposer.
     BufferDisposer* disposer() const
@@ -209,12 +205,14 @@ public:
         return static_cast<std::size_t>(m_end - m_begin);
     }
 
+protected:
+    virtual std::uint8_t* storageBegin() const = 0;
+    virtual std::uint8_t* storageEnd() const = 0;
+
 private:
-    //! The storage of the buffer.
-    boost::aligned_storage<BUFFER_SIZE>::type m_data;
-    //! Points to the first valid byte in m_data.
+    //! Points to the first valid byte in the storage.
     std::uint8_t* m_begin;
-    //! Points just past the last valid byte in m_data.
+    //! Points just past the last valid byte in the storage.
     std::uint8_t* m_end;
     //! The object which is invoked for disposing this buffer.
     BufferDisposer* m_disposer;
@@ -232,12 +230,49 @@ public:
 
 //! A buffer queue.
 typedef boost::intrusive::slist<
-        Buffer,
+        BufferBase,
         boost::intrusive::member_hook<
-            Buffer,
-            Buffer::queue_hook_t,
-            &Buffer::m_queueHook>,
+            BufferBase,
+            BufferBase::queue_hook_t,
+            &BufferBase::m_queueHook>,
         boost::intrusive::cache_last<true> > BufferQueue;
+
+class Buffer : public BufferBase
+{
+public:
+    static const int BUFFER_SIZE = 256; //! \todo Add this as template parameter?
+
+    //! Creates a buffer.
+    //! Creates a buffer which will be destroyed via the buffer \p disposer.
+    //! The disposer may be a null-pointer in which case it is never invoked.
+    explicit Buffer(BufferDisposer* disposer = 0)
+        : BufferBase(static_cast<std::uint8_t*>(m_data.address()), disposer)
+    {
+    }
+
+    //! \reimp
+    virtual std::size_t capacity() const
+    {
+        return BUFFER_SIZE;
+    }
+
+protected:
+    //! \reimp
+    virtual std::uint8_t* storageBegin() const
+    {
+        return static_cast<std::uint8_t*>(m_data.address());
+    }
+
+    //! \reimp
+    virtual std::uint8_t* storageEnd() const
+    {
+        return static_cast<std::uint8_t*>(m_data.address()) + BUFFER_SIZE;
+    }
+
+private:
+    //! The storage of the buffer.
+    boost::aligned_storage<BUFFER_SIZE>::type m_data;
+};
 
 } // namespace uNet
 
