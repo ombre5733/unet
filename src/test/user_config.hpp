@@ -46,7 +46,7 @@
 
 // The frequency of the system clock (in Hz).
 // \note In Keil's CMSIS RTOS this is the value of OS_CLOCK.
-#  define WEOS_SYSTEM_CLOCK_FREQUENCY     12000000
+#  define WEOS_SYSTEM_CLOCK_FREQUENCY     168000000
 // The frequency of the SysTick timer (in Hz).
 // \note In Keil's CMSIS RTOS this is the value of (1000000 / OS_TICK).
 #  define WEOS_SYSTICK_FREQUENCY          1000

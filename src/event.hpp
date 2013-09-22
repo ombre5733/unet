@@ -22,7 +22,8 @@ public:
         LinkConnection,
         LinkConnectionLoss,
         MessageReceive,
-        MessageSend
+        MessageSend,
+        StopKernel
     };
 
     Event()
@@ -72,6 +73,12 @@ public:
     {
         Event ev(MessageSend);
         ev.m_data.m_buffer = buffer;
+        return ev;
+    }
+
+    static Event createStopKernelEvent()
+    {
+        Event ev(StopKernel);
         return ev;
     }
 
@@ -139,7 +146,7 @@ public:
         Event* first = m_eventList;
         m_eventList = first->m_next;
         first->m_next = 0;
-        return first;
+        return *first;
     }
 
 private:

@@ -194,6 +194,49 @@ void app2(MemoryBus* bus)
     ifc.stop();
 }
 
+#if 0
+template <typename ResultT, typename ClassT>
+struct bind_result
+{
+    typedef ResultT (ClassT::* member_function_t)();
+
+    bind_result(member_function_t fn, ClassT* self)
+        : m_memberFunction(fn),
+          m_self(self)
+    {
+    }
+
+    void operator() ()
+    {
+        (m_self->*m_memberFunction)();
+    }
+
+    member_function_t m_memberFunction;
+    ClassT* m_self;
+};
+
+template <typename ResultT, typename ClassT>
+bind_result<ResultT, ClassT> bind(ResultT (ClassT::* memberFunction)(), ClassT* self)
+{
+    return bind_result<ResultT, ClassT>(memberFunction, self);
+}
+
+struct Xyz
+{
+    Xyz(int i)
+        : m_value(i)
+    {
+    }
+
+    void print()
+    {
+        std::cout << "Xyz = " << m_value << std::endl;
+    }
+
+    int m_value;
+};
+#endif
+
 int main()
 {
     MemoryBus bus;
