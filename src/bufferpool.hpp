@@ -10,10 +10,15 @@
 namespace uNet
 {
 
+//! A pool for buffers.
+//! The BufferPool is an object pool for buffers. Both, the size of a buffer
+//! and the number of buffers in the pool, are template parameters and thus
+//! configurable at compile time.
 template <unsigned TBufferSize, unsigned TNumBuffers>
 class BufferPool : public BufferDisposer
 {
 public:
+    //! The type of the buffer in this pool.
     typedef Buffer<TBufferSize> buffer_type;
 
     //! Allocates a buffer from the pool.

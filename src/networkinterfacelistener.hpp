@@ -5,12 +5,16 @@
 
 namespace uNet
 {
+class BufferBase;
+
 //! A listener for a network interface.
 //! The NetworkInterfaceListener is attached to a NetworkInterface and will
 //! receive notifications from it.
 class NetworkInterfaceListener
 {
 public:
+    virtual BufferBase* allocate_buffer() = 0;
+
     //! Notifies the listener.
     //! Notifies the listener about an \p event. This method is called by
     //! the NetworkInterface to which this listener is attached.

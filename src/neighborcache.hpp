@@ -5,6 +5,8 @@
 #include "linklayeraddress.hpp"
 #include "neighbor.hpp"
 
+#include <OperatingSystem/OperatingSystem.h>
+
 namespace uNet
 {
 
@@ -20,10 +22,12 @@ public:
     // void update(HostAddress address);
 
 private:
+    //! The first neighbor in the list.
     Neighbor* m_neighbors;
 
     typedef OperatingSystem::object_pool<Neighbor, MaxNumNeighborsT, null_mutex>
         pool_t;
+    //! The pool for the allocation of neighbors.
     pool_t m_neighborPool;
 };
 

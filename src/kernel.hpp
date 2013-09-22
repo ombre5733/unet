@@ -16,6 +16,9 @@ namespace uNet
 
 struct default_kernel_traits
 {
+    //! The size of one buffer in bytes.
+    static const unsigned buffer_size = 256;
+
     //! The maximum number of buffers.
     static const unsigned max_num_buffers = 10;
 
@@ -58,10 +61,17 @@ public:
     void send(HostAddress destination, BufferBase* message);
 
     //! \reimp
+    virtual BufferBase* allocate_buffer()
+    {
+        return m_bufferPool.allocate();
+    }
+
+    //! \reimp
     virtual void notify(Event event) {}
 
 private:
-    typedef BufferPool<256, traits_t::max_num_buffers> buffer_pool_t;
+    typedef BufferPool<traits_t::buffer_size,
+                       traits_t::max_num_buffers> buffer_pool_t;
     //! The pool from which buffers are allocated.
     buffer_pool_t m_bufferPool;
 
@@ -69,7 +79,7 @@ private:
     //! The list of events which has to be processed.
     event_list_t m_eventList;
 
-    //! A thread to deal with the events.
+    //! A thread to process the events.
     OperatingSystem::thread m_eventThread;
 
     //! The interfaces which have been registered in the kernel.

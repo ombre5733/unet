@@ -84,6 +84,11 @@ public:
         return m_linkLayerAddress;
     }
 
+    NetworkInterfaceListener* listener() const
+    {
+        return m_listener;
+    }
+
     const char* name() const;
 
     virtual std::pair<bool, LinkLayerAddress> neighborLinkLayerAddress(

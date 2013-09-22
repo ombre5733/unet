@@ -10,7 +10,6 @@ class MemoryBus;
 typedef uNet::Kernel<> Kernel;
 
 using uNet::BufferBase;
-using uNet::BufferPool;
 using uNet::HostAddress;
 using uNet::LinkLayerAddress;
 using uNet::NetworkAddress;
@@ -86,7 +85,7 @@ private:
 };
 
 MemoryBusInterface::MemoryBusInterface(Kernel* kernel, const std::string& name, MemoryBus *bus)
-    : NetworkInterface(0),
+    : NetworkInterface(kernel),
       m_bus(bus),
       m_name(name),
       m_hasReceivedData(false),
@@ -120,11 +119,9 @@ void MemoryBusInterface::run()
     }
 }
 
-uNet::BufferPool<256, 10> pool;
-
 void MemoryBusInterface::receive(const std::vector<uint8_t> &data)
 {
-    BufferBase* b = pool.allocate();
+    BufferBase* b = listener()->allocate_buffer();
     for (int i = 0; i < data.size(); ++i)
     {
         uint8_t x = data[i];
@@ -148,7 +145,7 @@ void MemoryBusInterface::stop()
 
 void app1(MemoryBus* bus)
 {
-    std::cout << "app1" << std::endl;
+    std::cout << "app1 started" << std::endl;
 
     Kernel k;
     MemoryBusInterface ifc(&k, "IF1", bus);
@@ -157,7 +154,7 @@ void app1(MemoryBus* bus)
     ifc.start();
 
     // Neighbor Advertisment
-    BufferBase* b = pool.allocate();
+    BufferBase* b = k.allocate_buffer();
     {
         //NeighborSolicitation sol;
         //b.push_front((uint8_t*)&sol, sizeof(sol));
@@ -182,7 +179,7 @@ void app1(MemoryBus* bus)
 
 void app2(MemoryBus* bus)
 {
-    std::cout << "app2" << std::endl;
+    std::cout << "app2 started" << std::endl;
 
     Kernel k;
     MemoryBusInterface ifc(&k, "IF2", bus);
@@ -193,49 +190,6 @@ void app2(MemoryBus* bus)
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();
 }
-
-#if 0
-template <typename ResultT, typename ClassT>
-struct bind_result
-{
-    typedef ResultT (ClassT::* member_function_t)();
-
-    bind_result(member_function_t fn, ClassT* self)
-        : m_memberFunction(fn),
-          m_self(self)
-    {
-    }
-
-    void operator() ()
-    {
-        (m_self->*m_memberFunction)();
-    }
-
-    member_function_t m_memberFunction;
-    ClassT* m_self;
-};
-
-template <typename ResultT, typename ClassT>
-bind_result<ResultT, ClassT> bind(ResultT (ClassT::* memberFunction)(), ClassT* self)
-{
-    return bind_result<ResultT, ClassT>(memberFunction, self);
-}
-
-struct Xyz
-{
-    Xyz(int i)
-        : m_value(i)
-    {
-    }
-
-    void print()
-    {
-        std::cout << "Xyz = " << m_value << std::endl;
-    }
-
-    int m_value;
-};
-#endif
 
 int main()
 {
