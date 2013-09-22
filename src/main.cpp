@@ -9,7 +9,7 @@ class MemoryBus;
 
 typedef uNet::Kernel<> Kernel;
 
-using uNet::Buffer;
+using uNet::BufferBase;
 using uNet::BufferPool;
 using uNet::HostAddress;
 using uNet::LinkLayerAddress;
@@ -28,8 +28,8 @@ public:
         return m_name;
     }
 
-    virtual void broadcast(Buffer &data) override;
-    virtual void send(const LinkLayerAddress &address, Buffer &data) override;
+    virtual void broadcast(BufferBase& data) override;
+    virtual void send(const LinkLayerAddress& address, BufferBase& data) override;
 
     void receive(const std::vector<uint8_t>& data);
 
@@ -95,13 +95,13 @@ MemoryBusInterface::MemoryBusInterface(Kernel* kernel, const std::string& name, 
     bus->connect(this);
 }
 
-void MemoryBusInterface::broadcast(Buffer &data)
+void MemoryBusInterface::broadcast(BufferBase& data)
 {
     std::vector<uint8_t> rawData(data.begin(), data.end());
     m_bus->send(this, rawData);
 }
 
-void MemoryBusInterface::send(const LinkLayerAddress &address, Buffer& data)
+void MemoryBusInterface::send(const LinkLayerAddress& address, BufferBase& data)
 {
     std::vector<uint8_t> rawData(data.begin(), data.end());
     m_bus->send(this, rawData);
@@ -124,7 +124,7 @@ uNet::BufferPool<256, 10> pool;
 
 void MemoryBusInterface::receive(const std::vector<uint8_t> &data)
 {
-    Buffer* b = pool.allocate();
+    BufferBase* b = pool.allocate();
     for (int i = 0; i < data.size(); ++i)
     {
         uint8_t x = data[i];
@@ -157,7 +157,7 @@ void app1(MemoryBus* bus)
     ifc.start();
 
     // Neighbor Advertisment
-    Buffer* b = pool.allocate();
+    BufferBase* b = pool.allocate();
     {
         //NeighborSolicitation sol;
         //b.push_front((uint8_t*)&sol, sizeof(sol));

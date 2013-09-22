@@ -13,7 +13,7 @@ TEST(BufferPool, allocate_and_release)
     uNet::BufferPool<256, 1> p;
     for (int i = 0; i < 100; ++i)
     {
-        uNet::Buffer* b = p.allocate();
+        uNet::Buffer<256>* b = p.allocate();
         ASSERT_TRUE(b != 0);
         ASSERT_TRUE(p.empty());
         ASSERT_EQ(&p, b->disposer());
@@ -28,7 +28,7 @@ TEST(BufferPool, allocate_and_dispose)
     uNet::BufferPool<256, 1> p;
     for (int i = 0; i < 100; ++i)
     {
-        uNet::Buffer* b = p.allocate();
+        uNet::Buffer<256>* b = p.allocate();
         ASSERT_TRUE(b != 0);
         ASSERT_TRUE(p.empty());
         ASSERT_EQ(&p, b->disposer());

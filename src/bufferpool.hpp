@@ -14,7 +14,7 @@ template <unsigned TBufferSize, unsigned TNumBuffers>
 class BufferPool : public BufferDisposer
 {
 public:
-    typedef Buffer buffer_type; //! \todo Buffer should take the size as parameter
+    typedef Buffer<TBufferSize> buffer_type;
 
     //! Allocates a buffer from the pool.
     //! Allocates a buffer from the pool and returns a pointer to it. If the

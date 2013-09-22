@@ -4,6 +4,8 @@
 
 #include <cstring>
 
+typedef uNet::Buffer<256> buffer_t;
+
 class TestBufferDisposer : public uNet::BufferDisposer
 {
 public:
@@ -15,18 +17,18 @@ public:
 
     virtual void dispose(uNet::BufferBase* buffer)
     {
-        lastDisposedBuffer = static_cast<uNet::Buffer*>(buffer);
+        lastDisposedBuffer = static_cast<buffer_t*>(buffer);
         ++numDisposedBuffers;
     }
 
-    uNet::Buffer* lastDisposedBuffer;
+    buffer_t* lastDisposedBuffer;
     int numDisposedBuffers;
 };
 
 TEST(Buffer, Initialization)
 {
     {
-        uNet::Buffer b;
+        buffer_t b;
         ASSERT_EQ(b.begin(), b.end());
         ASSERT_TRUE(b.disposer() == 0);
         ASSERT_EQ(0, b.size());
@@ -34,7 +36,7 @@ TEST(Buffer, Initialization)
 
     {
         TestBufferDisposer disposer;
-        uNet::Buffer b(&disposer);
+        buffer_t b(&disposer);
         ASSERT_EQ(b.begin(), b.end());
         ASSERT_TRUE(b.disposer() == &disposer);
         ASSERT_EQ(0, b.size());
@@ -47,9 +49,9 @@ TEST(Buffer, Initialization)
 TEST(Buffer, dispose)
 {
     TestBufferDisposer disposer;
-    uNet::Buffer b1(&disposer);
-    uNet::Buffer b2(&disposer);
-    uNet::Buffer b3(&disposer);
+    buffer_t b1(&disposer);
+    buffer_t b2(&disposer);
+    buffer_t b3(&disposer);
 
     b3.dispose();
     ASSERT_EQ(disposer.lastDisposedBuffer, &b3);
@@ -66,7 +68,7 @@ TEST(Buffer, dispose)
 
 TEST(Buffer, push_back)
 {
-    uNet::Buffer b;
+    buffer_t b;
     ASSERT_EQ(b.begin(), b.end());
     ASSERT_EQ(0, b.size());
 
@@ -104,7 +106,7 @@ TEST(Buffer, push_back)
 
 TEST(Buffer, push_and_pop_from_front)
 {
-    uNet::Buffer b;
+    buffer_t b;
     ASSERT_EQ(b.begin(), b.end());
     ASSERT_EQ(0, b.size());
 

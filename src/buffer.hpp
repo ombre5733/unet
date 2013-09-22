@@ -112,6 +112,9 @@ public:
     virtual void dispose(BufferBase* buffer) = 0;
 };
 
+//! The common base of all buffers.
+//! The BufferBase is the common base class of all buffer implementations
+//! in the uNet library.
 class BufferBase : boost::noncopyable
 {
 public:
@@ -182,9 +185,7 @@ public:
     template <typename TType>
     void push_back(const TType& data)
     {
-        UNET_ASSERT(m_end + sizeof(TType)
-                    <= static_cast<std::uint8_t*>(m_data.address())
-                       + BUFFER_SIZE);
+        UNET_ASSERT(m_end + sizeof(TType) <= storageEnd());
         std::memcpy(m_end, &data, sizeof(TType));
         m_end += sizeof(TType);
     }
@@ -195,7 +196,7 @@ public:
     void push_front(const TType& data)
     {
         m_begin -= sizeof(TType);
-        UNET_ASSERT(m_begin >= static_cast<std::uint8_t*>(m_data.address()));
+        UNET_ASSERT(m_begin >= storageBegin());
         std::memcpy(m_begin, &data, sizeof(TType));
     }
 
@@ -206,7 +207,9 @@ public:
     }
 
 protected:
+    //! Returns a pointer to the first byte of the storage.
     virtual std::uint8_t* storageBegin() const = 0;
+    //! Returns a pointer just past the last byte of the storage.
     virtual std::uint8_t* storageEnd() const = 0;
 
 private:
@@ -237,10 +240,11 @@ typedef boost::intrusive::slist<
             &BufferBase::m_queueHook>,
         boost::intrusive::cache_last<true> > BufferQueue;
 
+template <unsigned TBufferSize>
 class Buffer : public BufferBase
 {
 public:
-    static const int BUFFER_SIZE = 256; //! \todo Add this as template parameter?
+    static const int BUFFER_SIZE = 256; //! \todo Add this as template parameter
 
     //! Creates a buffer.
     //! Creates a buffer which will be destroyed via the buffer \p disposer.

@@ -65,7 +65,7 @@ public:
 
     explicit NetworkInterface(NetworkInterfaceListener* listener);
 
-    virtual void broadcast(Buffer& data) {}
+    virtual void broadcast(BufferBase& data) {}
 
     //! Returns the domain to which the interface is connected.
     Domain domain() const;
@@ -110,7 +110,7 @@ public:
     //! is identified through its link-layer \p address. If the link does
     //! not have link-layer addresses (because it is a point-to-point
     //! connection such as e.g. UART), the \p address should be ignored.
-    virtual void send(const LinkLayerAddress& address, Buffer& data) = 0;
+    virtual void send(const LinkLayerAddress& address, BufferBase& data) = 0;
 
 private:
     //! The link-layer address of this interface.

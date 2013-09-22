@@ -55,7 +55,7 @@ public:
     //! Sends a buffer.
     //! Sends the given \p message buffer to the neighbor specified by the
     //! \p destination address.
-    void send(HostAddress destination, Buffer* message);
+    void send(HostAddress destination, BufferBase* message);
 
     //! \reimp
     virtual void notify(Event event) {}
@@ -111,7 +111,7 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 }
 
 template <typename TraitsT>
-void Kernel<TraitsT>::send(HostAddress destination, Buffer* message)
+void Kernel<TraitsT>::send(HostAddress destination, BufferBase* message)
 {
     message->push_front(destination);
     m_eventList.enqueue(Event::createMessageSendEvent(message));
@@ -149,7 +149,7 @@ void Kernel<TraitsT>::eventLoop()
 template <typename TraitsT>
 void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
 {
-    Buffer* message = event.buffer();
+    BufferBase* message = event.buffer();
     // Throw away malformed messages.
     if (message->size() < sizeof(NetworkHeader))
         return;
@@ -176,7 +176,7 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
 template <typename TraitsT>
 void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
 {
-    Buffer* message = event.buffer();
+    BufferBase* message = event.buffer();
 #if 0
     // Perform a look-up in the destination cache.
     Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);

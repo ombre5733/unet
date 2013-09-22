@@ -5,8 +5,8 @@
 
 namespace uNet
 {
+class BufferBase;
 
-class Buffer;
 class NetworkInterface;
 
 //! A kernel event.
@@ -51,7 +51,7 @@ public:
         return m_interface;
     }
 
-    Buffer* buffer() const
+    BufferBase* buffer() const
     {
         return m_data.m_buffer;
     }
@@ -59,7 +59,7 @@ public:
     //! Creates a message receive event.
     //! Creates an event to signal the reception of a \p buffer.
     static Event createMessageReceiveEvent(NetworkInterface* ifc,
-                                           Buffer* buffer)
+                                           BufferBase* buffer)
     {
         Event ev(MessageReceive);
         ev.m_interface = ifc;
@@ -69,7 +69,7 @@ public:
 
     //! Creates a message send event.
     //! Creates an event for sending a \p buffer.
-    static Event createMessageSendEvent(Buffer* buffer)
+    static Event createMessageSendEvent(BufferBase* buffer)
     {
         Event ev(MessageSend);
         ev.m_data.m_buffer = buffer;
@@ -97,7 +97,7 @@ private:
 
     union
     {
-        Buffer* m_buffer;
+        BufferBase* m_buffer;
     } m_data;
 
     template <unsigned>
