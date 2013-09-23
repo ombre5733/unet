@@ -44,7 +44,8 @@ struct default_kernel_traits
 //! The network kernel is the central unit in the network implementation.
 //! It keeps track of the interfaces and is in charge for routing messages.
 template <typename TraitsT = default_kernel_traits>
-class Kernel : public NetworkInterfaceListener
+class Kernel : public NetworkInterfaceListener,
+               public NcpHandler<Kernel<TraitsT> >
 {
 public:
     typedef TraitsT traits_t;
@@ -103,6 +104,7 @@ private:
     void handleMessageSendEvent(const Event& event);
     void sendNeighborSolicitation(NetworkInterface* ifc, HostAddress destAddr);
 
+public:
     //! \todo This needs to be combined with a destination cache and the routing table.
     NeighborCache<traits_t::max_num_cached_neighbors> nc;
 };
@@ -195,7 +197,8 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
         if (header->nextHeader == 1)
         {
             // This is an NCP message.
-            std::cout << "<Kernel> Received an NCP message " << int(header->sourceAddress) << std::endl;
+            message->moveBegin(sizeof(NetworkHeader));
+            NcpHandler<Kernel<TraitsT> >::handle(*message);
         }
         else
         {
@@ -275,11 +278,6 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
 
             // Send out a neighbor solicitation.
             sendNeighborSolicitation(ifc, routedDestination);
-
-            // --- HACK
-            //ifc->send(LinkLayerAddress(), *message);
-            // --- END OF HACK
-
             return;
         }
     }
@@ -297,7 +295,6 @@ void Kernel<TraitsT>::sendNeighborSolicitation(NetworkInterface* ifc,
 
     NetworkControlProtocolMessageBuilder builder(*b);
     builder.createNeighborSolicitation(destAddr);
-
     //! \todo: Add the link-layer address of the sender
     //builder.addSourceLinkLayerAddressOption();
 

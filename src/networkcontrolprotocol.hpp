@@ -97,6 +97,7 @@ Target link-layer address option
 
 #include "buffer.hpp"
 #include "networkaddress.hpp"
+#include "networkheader.hpp"
 #include "linklayeraddress.hpp"
 
 #include <cstdint>
@@ -361,7 +362,65 @@ private:
 };
 #endif
 
+template <typename KernelT>
+class NcpHandler
+{
+public:
+    void handle(NetworkHeader* netHeader, BufferBase& message)
+    {
+        // Ignore malformed messages.
+        if (message.size() < sizeof(NetworkControlProtocolHeader))
+        {
+            // diagnostics.corruptHeader(packet.data());
+            return;
+        }
 
+        const NetworkControlProtocolHeader* header
+                = reinterpret_cast<const NetworkControlProtocolHeader*>(message.begin());
+
+        switch (header->type)
+        {
+            case NeighborSolicitation::ncpType:
+                derived()->onNcpNeighborSolicitation(netHeader, message);
+                break;
+                /*
+            case NeighborAdvertisment::ncpType:
+                derived()->onNcpNeighborAdvertisment(packet);
+                break;*/
+            default:
+                // diagnostics.unknownNcpType(packet);
+                break;
+        }
+    }
+
+    void onNcpNeighborSolicitation(NetworkHeader* netHeader, BufferBase& message)
+    {
+        std::cout << "NCP - Received neighbor solicitation" << std::endl;
+        BufferBase* b = derived()->allocateBuffer();
+
+        NetworkControlProtocolMessageBuilder builder(*b);
+        builder.createNeighborAdvertisment(destAddr, true);
+        //! \todo: Add the link-layer address of the sender
+        //builder.addTargetLinkLayerAddressOption();
+
+        NetworkHeader header;
+        header.sourceAddress = netHeader->destinationAddress;
+        header.destinationAddress = netHeader->sourceAddress;
+        header.nextHeader = 1;
+        b->push_front(header);
+    }
+
+private:
+    KernelT* derived()
+    {
+        return static_cast<KernelT*>(this);
+    }
+
+    const KernelT* derived() const
+    {
+        return static_cast<const KernelT*>(this);
+    }
+};
 
 } // namespace uNet
 

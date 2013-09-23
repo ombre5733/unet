@@ -76,6 +76,8 @@ public:
         return ev;
     }
 
+    //! \todo Remove this method again and allow the kernel to create events
+    //! with arbitrary type.
     static Event createStopKernelEvent()
     {
         Event ev(StopKernel);

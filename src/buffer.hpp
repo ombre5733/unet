@@ -164,6 +164,11 @@ public:
         return m_begin;
     }
 
+    void moveBegin(int offset)
+    {
+        m_begin += offset;
+    }
+
     //! Returns a pointer just past the end of the data.
     const std::uint8_t* end() const
     {

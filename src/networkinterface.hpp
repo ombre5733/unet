@@ -65,7 +65,7 @@ public:
 
     explicit NetworkInterface(NetworkInterfaceListener* listener);
 
-    virtual void broadcast(BufferBase& data) {}
+    virtual void broadcast(BufferBase& data) = 0;
 
     //! Returns the domain to which the interface is connected.
     Domain domain() const;
