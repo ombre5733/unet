@@ -27,6 +27,8 @@ add_executable(unet
 target_link_libraries(unet ${Boost_LIBRARIES})
 
 add_subdirectory(buffer)
+add_subdirectory(networkinterface)
+
 #add_subdirectory(networkaddress)
 #add_subdirectory(staticobjectpool)
 #add_subdirectory(timeoutlist)
