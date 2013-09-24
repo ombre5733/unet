@@ -1,13 +1,13 @@
-#ifndef UNET_NETWORKHEADER_HPP
-#define UNET_NETWORKHEADER_HPP
+#ifndef UNET_NETWORKPROTOCOL_HPP
+#define UNET_NETWORKPROTOCOL_HPP
 
 #include <cstdint>
 
 namespace uNet
 {
 
-// The uNet network protocol carries enough information to route data from one
-// device in the network to another. It has the following header
+// The network protocol carries enough information to route data from one
+// interface in the network to another. It has the following header
 //
 // \code
 // 0                   1                   2                   3
@@ -15,7 +15,7 @@ namespace uNet
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // |Version|HopCnt |  Next header  |            Length             |
 // +-------+-------+---------------+---------------+---------------+
-// |            Source             |          Destination          |
+// |        Source address         |      Destination address      |
 // +---------------+---------------+---------------+---------------+
 // \endcode
 //
@@ -23,12 +23,12 @@ namespace uNet
 // whenever the message is routed. If the \p HopCnt is zero, the message is
 // not routed any longer but is dropped by the kernel.
 // The <tt>Next header</tt> encodes the type of the header in the payload.
-// The \p Length is the
-// total length of the message including this header. The \p Source and
-// \p Destination fields contain the source and destination addresses of the
-// message.
+// The \p Length is the total length of the message including this header. The
+// <tt>Source address</tt> and <tt>Destination address</tt> fields contain
+// the source and destination addresses of the sending and receiving
+// interfaces.
 
-struct NetworkHeader
+struct NetworkProtocolHeader
 {
     std::uint8_t version : 4;
     std::uint8_t hopCount : 4;
@@ -42,4 +42,4 @@ struct NetworkHeader
 
 } // namespace uNet
 
-#endif // UNET_NETWORKHEADER_HPP
+#endif // UNET_NETWORKPROTOCOL_HPP

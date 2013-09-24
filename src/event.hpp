@@ -25,6 +25,7 @@ public:
         MessageReceive,
         MessageSend,
 
+        SendLinkLocalBroadcast,
         SendRawMessage,
 
         StopKernel
@@ -81,6 +82,15 @@ public:
     static Event createSendRawMessageEvent(BufferBase* buffer)
     {
         Event ev(SendRawMessage);
+        ev.m_buffer = buffer;
+        return ev;
+    }
+
+    static Event createSendLinkLocalBroadcast(NetworkInterface* ifc,
+                                              BufferBase* buffer)
+    {
+        Event ev(SendLinkLocalBroadcast);
+        ev.m_interface = ifc;
         ev.m_buffer = buffer;
         return ev;
     }

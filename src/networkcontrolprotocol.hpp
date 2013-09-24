@@ -28,7 +28,6 @@ sub-types.
 
 \todo Describe the computation of the checksum
 
-
 Neighbor solicitation message
 
 A neighbor solicitation is sent whenever a device needs to verify the
@@ -44,6 +43,16 @@ reachability of another device on the bus or to resolve its link-layer address.
 +---------------+---------------+---------------+---------------+
 \endcode
 
+Network protocol fields:
+    Source address
+            The address of the sending interface or the unspecified address
+            if no address has been assigned to the interface, yet.
+
+    Destination address
+            The multicast address or the target address.
+
+    HopCnt  The maximum possible hop count.
+
 NCP fields:
     Type    1
     Code    0
@@ -52,6 +61,11 @@ The <tt>Target address</tt> is the address of the device which is solicited.
 
 Only the <tt>Source link-layer address</tt> is allowed as an option in the
 neighbor solicitation message.
+
+Note: The neighbor solicitation message can be sent from an unspecified source
+address. This is used to probe if a wanted address on a link is still available
+or already taken by another device. If the address is in use, the targeted
+device sends the corresponding neighbor advertisment as a link-local broadcast.
 
 
 Neighbor advertisment message
@@ -69,6 +83,17 @@ spontaneously or as a response to a neighbor solicitation.
 |        Target address         |S|         reserved            |
 +---------------+---------------+---------------+---------------+
 \endcode
+
+Network protocol fields:
+    Source address
+            The address of the interface via which the advertisment is sent.
+
+    Destination address
+            The source address of the soliciation message or, if the
+            solicitation's source address is the unspecified address, the
+            multicast address.
+
+    HopCnt  The maximum possible hop count.
 
 NCP fields:
     Type    2
@@ -100,7 +125,7 @@ Target link-layer address option
 #include "buffer.hpp"
 #include "event.hpp"
 #include "networkaddress.hpp"
-#include "networkheader.hpp"
+#include "networkprotocol.hpp"
 #include "linklayeraddress.hpp"
 
 #include <cstdint>
@@ -369,7 +394,7 @@ template <typename KernelT>
 class NcpHandler
 {
 public:
-    void handle(const NetworkHeader* netHeader, BufferBase& message)
+    void handle(const NetworkProtocolHeader* netHeader, BufferBase& message)
     {
         // Ignore malformed messages.
         if (message.size() < sizeof(NetworkControlProtocolHeader))
@@ -396,13 +421,18 @@ public:
         }
     }
 
-    void onNcpNeighborSolicitation(const NetworkHeader* netHeader,
+    void onNcpNeighborSolicitation(const NetworkProtocolHeader* netHeader,
                                    BufferBase& message)
     {
         std::cout << "NCP - Received neighbor solicitation" << std::endl;
 
         const NeighborSolicitation* solicitation
             = reinterpret_cast<const NeighborSolicitation*>(message.begin());
+
+        /*
+        if (netHeader->sourceAddress.isSingleHost())
+            derived()->nc->findOrCreate(netHeader->sourceAddress);
+        */
 
         BufferBase* buffer = derived()->allocateBuffer();
 
@@ -411,13 +441,26 @@ public:
         //! \todo: Add the link-layer address of the sender
         //builder.addTargetLinkLayerAddressOption();
 
-        NetworkHeader header;
+        NetworkProtocolHeader header;
         header.sourceAddress = netHeader->destinationAddress;
         header.destinationAddress = netHeader->sourceAddress;
         header.nextHeader = 1;
         buffer->push_front(header);
 
-        derived()->notify(Event::createSendRawMessageEvent(buffer));
+        // If the solicitation has been sent from an unspecified host, the
+        // advertisment is sent as a broadcast. Otherwise we can use
+        // a unicast.
+        if (HostAddress(netHeader->sourceAddress).unspecified())
+        {
+            /*
+            derived()->notify(Event::createSendLinkLocalBroadcast(
+                                  buffer))
+            */
+        }
+        else
+        {
+            derived()->notify(Event::createSendRawMessageEvent(buffer));
+        }
     }
 
 private:
