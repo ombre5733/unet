@@ -29,7 +29,6 @@ packet is wrapped in an IP packet which is again wrapped in an ethernet MAC
 frame.
 
 
-
 Buffer
 
 A buffer is the central data storage unit used in the message processing
@@ -51,5 +50,46 @@ chain. The design of a buffer has to meet the following requirements:
   copy of a buffer until it receives an acknowledge from the other end.
   These copies can often be avoided when it is possible to reclaim a buffer
   before it is disposed. --> BufferMemento
+
+
+BufferMemento
+
+BufferMementos are used to save the state of a buffer. This is needed whenever
+a high-level buffer processor needs to retrieve a buffer after it has been
+processed by low-level processors. As an example, an application might want
+to keep a buffer until it has been acknowledged by the receiver such that
+the buffer can be retransmitted upon request. The application can add a
+BufferMemento to a buffer and will get the buffer back after it has been
+sent by the interface. The memento stores the state of the iterators but not
+the data in between. This is sufficient as long as subsequent elements in
+the processing chain restrict themselves to prepending and appending data
+but do not modify the data elements between the iterators.
+
+
+Destination cache, neighbor cache and routing table
+
+The neighbor cache stores data about each neighbor to which a message has been
+sent. This includes information such as the network and link-layer address and
+the state of the neighbor, for example.
+
+Neighbor discovery
+
+Neighbor discovery is the process of determining the link-layer address of a
+neighbor and verifying its reachability. Neighbor discovery relies on two
+messages: the Neighbor Solicitation and the Neighbor Advertisment. A Neighbor
+Solicitation is sent by a device which wants to discover a neighbor. A
+Neighbor Advertisment is sent by a device either as a response to a Neighbor
+Solicitation or spontaneously to make itself known to other devices on the
+same link. If a neighbor discovery is in progress, all further messages are
+delayed until the reachability of the neighbor could be verified.
+
+Neighbor discovery states
+
+- Incomplete: The neighbor structure has just been created and the discovery
+  procedure is in progress.
+
+- Reachable: The reachability of the neighbor has been verified recently.
+
+- Probed:
 
 */
