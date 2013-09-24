@@ -100,7 +100,7 @@ typedef boost::intrusive::slist<
 
 //! An buffer disposer.
 //! This abstract base class specifies the interface of a disposer for an
-//! object of type Buffer. Every buffer holds a pointer to one such object
+//! object of type BufferBase. Every buffer holds a pointer to one such object
 //! which it can invoke in order to be disposed. Depending on the allocation
 //! strategy, the disposer should call delete or return the buffer back to
 //! a memory pool.
@@ -118,7 +118,8 @@ public:
 class BufferBase : boost::noncopyable
 {
 public:
-    BufferBase(std::uint8_t* storageBegin, BufferDisposer* disposer = 0)
+    explicit BufferBase(std::uint8_t* storageBegin,
+                        BufferDisposer* disposer = 0)
         : m_disposer(disposer)
     {
         m_begin = m_end = storageBegin + 32;
@@ -159,6 +160,12 @@ public:
     }
 
     //! Returns a pointer to the beginning of the data.
+    std::uint8_t* begin()
+    {
+        return m_begin;
+    }
+
+    //! Returns a pointer to the beginning of the data.
     const std::uint8_t* begin() const
     {
         return m_begin;
@@ -167,6 +174,12 @@ public:
     void moveBegin(int offset)
     {
         m_begin += offset;
+    }
+
+    //! Returns a pointer just past the end of the data.
+    std::uint8_t* end()
+    {
+        return m_end;
     }
 
     //! Returns a pointer just past the end of the data.
@@ -205,7 +218,9 @@ public:
         std::memcpy(m_begin, &data, sizeof(TType));
     }
 
-    //! Returns the size of the buffer.
+    //! Returns the size of the data.
+    //! Returns the size of the data in the buffer, i.e. the difference
+    //! between the begin() and end() iterators.
     std::size_t size() const
     {
         return static_cast<std::size_t>(m_end - m_begin);

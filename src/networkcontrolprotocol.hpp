@@ -86,6 +86,8 @@ address of the interface which changed its link-layer address.
 
 NCP options
 
+NCP options can be appended to an NCP message. The following options are
+available:
 
 Source link-layer address option
 
@@ -96,6 +98,7 @@ Target link-layer address option
 #include "config.hpp"
 
 #include "buffer.hpp"
+#include "event.hpp"
 #include "networkaddress.hpp"
 #include "networkheader.hpp"
 #include "linklayeraddress.hpp"
@@ -366,7 +369,7 @@ template <typename KernelT>
 class NcpHandler
 {
 public:
-    void handle(NetworkHeader* netHeader, BufferBase& message)
+    void handle(const NetworkHeader* netHeader, BufferBase& message)
     {
         // Ignore malformed messages.
         if (message.size() < sizeof(NetworkControlProtocolHeader))
@@ -393,13 +396,18 @@ public:
         }
     }
 
-    void onNcpNeighborSolicitation(NetworkHeader* netHeader, BufferBase& message)
+    void onNcpNeighborSolicitation(const NetworkHeader* netHeader,
+                                   BufferBase& message)
     {
         std::cout << "NCP - Received neighbor solicitation" << std::endl;
-        BufferBase* b = derived()->allocateBuffer();
 
-        NetworkControlProtocolMessageBuilder builder(*b);
-        builder.createNeighborAdvertisment(destAddr, true);
+        const NeighborSolicitation* solicitation
+            = reinterpret_cast<const NeighborSolicitation*>(message.begin());
+
+        BufferBase* buffer = derived()->allocateBuffer();
+
+        NetworkControlProtocolMessageBuilder builder(*buffer);
+        builder.createNeighborAdvertisment(solicitation->targetAddress, true);
         //! \todo: Add the link-layer address of the sender
         //builder.addTargetLinkLayerAddressOption();
 
@@ -407,7 +415,9 @@ public:
         header.sourceAddress = netHeader->destinationAddress;
         header.destinationAddress = netHeader->sourceAddress;
         header.nextHeader = 1;
-        b->push_front(header);
+        buffer->push_front(header);
+
+        derived()->notify(Event::createSendRawMessageEvent(buffer));
     }
 
 private:

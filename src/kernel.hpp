@@ -60,10 +60,13 @@ public:
     //! Registers the interface \p ifc in the kernel.
     void addInterface(NetworkInterface* ifc);
 
-    //! Sends a buffer.
-    //! Sends the given \p message buffer to the neighbor specified by the
-    //! \p destination address.
-    void send(HostAddress destination, BufferBase* message);
+    //! Sends a message.
+    //! Sends the given \p message to the neighbor specified by the
+    //! \p destination address. Before sending, a network header is prepended
+    //! to the message. The type of the first header in the message is encoded
+    //! in the \p headerType. This type will be incorporated in the network
+    //! header.
+    void send(HostAddress destination, int headerType, BufferBase* message);
 
     //! \reimp
     virtual BufferBase* allocateBuffer()
@@ -102,6 +105,9 @@ private:
     void eventLoop();
     void handleMessageReceiveEvent(const Event& event);
     void handleMessageSendEvent(const Event& event);
+
+    void handleSendRawMessageEvent(const Event& event);
+
     void sendNeighborSolicitation(NetworkInterface* ifc, HostAddress destAddr);
 
 public:
@@ -140,9 +146,13 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 }
 
 template <typename TraitsT>
-void Kernel<TraitsT>::send(HostAddress destination, BufferBase* message)
+void Kernel<TraitsT>::send(HostAddress destination, int headerType,
+                           BufferBase* message)
 {
-    message->push_front(destination);
+    NetworkHeader header;
+    header.destinationAddress = destination;
+    header.nextHeader = headerType;
+    message->push_front(header);
     m_eventList.enqueue(Event::createMessageSendEvent(message));
 }
 
@@ -165,6 +175,9 @@ void Kernel<TraitsT>::eventLoop()
                 break;
             case Event::MessageSend:
                 handleMessageSendEvent(event);
+                break;
+            case Event::SendRawMessage:
+                handleSendRawMessageEvent(event);
                 break;
             case Event::StopKernel:
                 stopEventThread = true;
@@ -198,7 +211,7 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
         {
             // This is an NCP message.
             message->moveBegin(sizeof(NetworkHeader));
-            NcpHandler<Kernel<TraitsT> >::handle(*message);
+            NcpHandler<Kernel<TraitsT> >::handle(header, *message);
         }
         else
         {
@@ -213,9 +226,29 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
 }
 
 template <typename TraitsT>
+void Kernel<TraitsT>::handleSendRawMessageEvent(const Event& event)
+{
+    BufferBase* message = event.buffer();
+    UNET_ASSERT(message->size() >= sizeof(NetworkHeader));
+
+    const NetworkHeader* header
+            = reinterpret_cast<const NetworkHeader*>(message->begin());
+    Neighbor* cachedNeighbor = nc.find(header->destinationAddress);
+    if (!cachedNeighbor)
+    {
+        message->dispose();
+        return;
+    }
+
+    cachedNeighbor->networkInterface()->send(
+                cachedNeighbor->linkLayerAddress(), *message);
+}
+
+template <typename TraitsT>
 void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
 {
     BufferBase* message = event.buffer();
+    NetworkHeader* header = reinterpret_cast<NetworkHeader*>(message->begin());
 #if 0
     // Perform a look-up in the destination cache.
     Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);
@@ -229,12 +262,12 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
         return;
     }
 #endif
-    HostAddress destination = message->pop_front<HostAddress>();
 
     // We have not found an entry in the destination cache. The next step is to
     // consult the routing table, which will map the destination address to
     // the one of the next neighbor.
-    HostAddress routedDestination = m_routingTable.resolve(destination);
+    HostAddress routedDestination = m_routingTable.resolve(
+                                        header->destinationAddress);
 
     Neighbor* cachedNeighbor = nc.find(routedDestination);
     if (cachedNeighbor)
@@ -259,27 +292,22 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
         NetworkInterface* ifc = m_interfaces[idx];
         if (!ifc)
             break;
+        if (!routedDestination.isInSubnet(ifc->networkAddress()))
+            continue;
 
-        if (routedDestination.isInSubnet(ifc->networkAddress()))
-        {
-            cachedNeighbor = nc.createEntry(routedDestination, ifc);
-            /*
+        cachedNeighbor = nc.createEntry(routedDestination, ifc);
+        /*
             nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
                               routedDestination, ifc);
-                              */
+        */
 
-            // Add the network header and put the message in the neighbor's
-            // queue.
-            NetworkHeader header;
-            header.sourceAddress = ifc->networkAddress().hostAddress();
-            header.destinationAddress = destination;
-            message->push_front(header);
-            cachedNeighbor->sendQueue().push_back(*message);
+        // Complete the header and put the message in the neighbor's queue.
+        header->sourceAddress = ifc->networkAddress().hostAddress();
+        cachedNeighbor->sendQueue().push_back(*message);
 
-            // Send out a neighbor solicitation.
-            sendNeighborSolicitation(ifc, routedDestination);
-            return;
-        }
+        // Send out a neighbor solicitation.
+        sendNeighborSolicitation(ifc, routedDestination);
+        return;
     }
 
     // Cannot find a route for this packet.

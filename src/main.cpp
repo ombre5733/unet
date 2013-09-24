@@ -96,13 +96,17 @@ MemoryBusInterface::MemoryBusInterface(Kernel* kernel, const std::string& name, 
 
 void MemoryBusInterface::broadcast(BufferBase& data)
 {
+    std::cout << "[" << m_name << "] broadcast - " << data.size() << std::endl;
     std::vector<uint8_t> rawData(data.begin(), data.end());
+    data.dispose();
     m_bus->send(this, rawData);
 }
 
 void MemoryBusInterface::send(const LinkLayerAddress& address, BufferBase& data)
 {
+    std::cout << "[" << m_name << "] send - " << data.size() << std::endl;
     std::vector<uint8_t> rawData(data.begin(), data.end());
+    data.dispose();
     m_bus->send(this, rawData);
 }
 
@@ -157,22 +161,10 @@ void main(MemoryBus* bus)
     // Neighbor Advertisment
     BufferBase* b = k.allocateBuffer();
     {
-        //NeighborSolicitation sol;
-        //b.push_front((uint8_t*)&sol, sizeof(sol));
-        // b.setDestinationAddress(0x
-
-        /*
-        UnetHeader h;
-        h.sourceAddress = 0x0101;
-        h.destinationAddress = 0x0102;
-        h.nextHeader = 1;
-        b->push_front((uint8_t*)&h, sizeof(h));
-        */
-
         uint16_t datum = 0x1234;
         b->push_back(datum);
     }
-    k.send(HostAddress(0x0102), b);
+    k.send(HostAddress(0x0102), 0xFF, b);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();

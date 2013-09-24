@@ -65,6 +65,8 @@ public:
 
     explicit NetworkInterface(NetworkInterfaceListener* listener);
 
+    //! Sends a broadcast.
+    //! Sends the given \p data as a broadcast over the link.
     virtual void broadcast(BufferBase& data) = 0;
 
     //! Returns the domain to which the interface is connected.
@@ -104,6 +106,7 @@ public:
     //! Sets the link-layer address.
     //! Sets the link-layer address of the interface to \p address.
     void setLinkLayerAddress(LinkLayerAddress address);
+
     void setName(const char* name);
 
     //! Sets the logical address.

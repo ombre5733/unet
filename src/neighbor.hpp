@@ -60,16 +60,16 @@ public:
         return m_hostAddress;
     }
 
-    //! Returns the interface to the physical link.
-    NetworkInterface* linkInterface() const
-    {
-        return m_interface;
-    }
-
     //! Returns the link-layer address of the neighbor.
     LinkLayerAddress linkLayerAddress() const
     {
         return m_linkLayerAddress;
+    }
+
+    //! Returns the interface to the physical link.
+    NetworkInterface* networkInterface() const
+    {
+        return m_interface;
     }
 
     //! Returns the buffer queue.

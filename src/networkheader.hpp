@@ -21,7 +21,9 @@ namespace uNet
 //
 // The \p Version is the protocol version. The \p HopCnt field is decremented
 // whenever the message is routed. If the \p HopCnt is zero, the message is
-// not routed any longer but is dropped by the kernel. The \p Length is the
+// not routed any longer but is dropped by the kernel.
+// The <tt>Next header</tt> encodes the type of the header in the payload.
+// The \p Length is the
 // total length of the message including this header. The \p Source and
 // \p Destination fields contain the source and destination addresses of the
 // message.

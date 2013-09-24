@@ -1,12 +1,13 @@
 #ifndef UNET_EVENT_HPP
 #define UNET_EVENT_HPP
 
+#include "networkaddress.hpp"
+
 #include <OperatingSystem/OperatingSystem.h>
 
 namespace uNet
 {
 class BufferBase;
-
 class NetworkInterface;
 
 //! A kernel event.
@@ -23,22 +24,29 @@ public:
         LinkConnectionLoss,
         MessageReceive,
         MessageSend,
+
+        SendRawMessage,
+
         StopKernel
     };
 
     Event()
         : m_type(Invalid),
-          m_interface(0),
           m_next(0)
     {
     }
 
     Event(const Event& other)
         : m_type(other.m_type),
-          m_interface(other.m_interface),
           m_next(0)
     {
-        m_data.m_buffer = other.m_data.m_buffer;
+        m_interface = other.m_interface;
+        m_buffer = other.m_buffer;
+    }
+
+    HostAddress hostAddress() const
+    {
+        return m_hostAddress;
     }
 
     Type type() const
@@ -53,7 +61,7 @@ public:
 
     BufferBase* buffer() const
     {
-        return m_data.m_buffer;
+        return m_buffer;
     }
 
     //! Creates a message receive event.
@@ -63,7 +71,17 @@ public:
     {
         Event ev(MessageReceive);
         ev.m_interface = ifc;
-        ev.m_data.m_buffer = buffer;
+        ev.m_buffer = buffer;
+        return ev;
+    }
+
+    //! Creates an event for sending a raw message.
+    //! Creates an event for sending the given \p buffer without prepending
+    //! a network header.
+    static Event createSendRawMessageEvent(BufferBase* buffer)
+    {
+        Event ev(SendRawMessage);
+        ev.m_buffer = buffer;
         return ev;
     }
 
@@ -72,7 +90,7 @@ public:
     static Event createMessageSendEvent(BufferBase* buffer)
     {
         Event ev(MessageSend);
-        ev.m_data.m_buffer = buffer;
+        ev.m_buffer = buffer;
         return ev;
     }
 
@@ -87,20 +105,18 @@ public:
 private:
     explicit Event(Type type)
         : m_type(type),
-          m_interface(0),
           m_next(0)
     {
-        m_data.m_buffer = 0;
+        m_interface = 0;
+        m_buffer = 0;
     }
 
     Type m_type;
-    NetworkInterface* m_interface;
     Event* m_next;
 
-    union
-    {
-        BufferBase* m_buffer;
-    } m_data;
+    NetworkInterface* m_interface;
+    HostAddress m_hostAddress;
+    BufferBase* m_buffer;
 
     template <unsigned>
     friend class EventList;
