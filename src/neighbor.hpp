@@ -47,10 +47,11 @@ public:
     {
     }
 
-    Neighbor(HostAddress address, NetworkInterface* ifc)
+    explicit Neighbor(HostAddress address)
         : m_hostAddress(address),
-          m_interface(ifc),
-          m_state(Incomplete)
+          m_interface(0),
+          m_state(Incomplete),
+          m_neighborCacheHook(0)
     {
     }
 
@@ -76,6 +77,13 @@ public:
     BufferQueue& sendQueue()
     {
         return m_sendQueue;
+    }
+
+    //! Sets the network interface.
+    //! Sets the interface via which this neighbor is reachable to \p ifc.
+    void setInterface(NetworkInterface* ifc)
+    {
+        m_interface = ifc;
     }
 
     //! Sets the link-layer address.

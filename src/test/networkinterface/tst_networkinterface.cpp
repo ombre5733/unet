@@ -16,6 +16,11 @@ public:
     {
     }
 
+    virtual bool linkHasAddresses() const
+    {
+        return false;
+    }
+
     virtual void send(const uNet::LinkLayerAddress& address,
                       uNet::BufferBase& data)
     {

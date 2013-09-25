@@ -28,6 +28,7 @@ public:
     }
 
     virtual void broadcast(BufferBase& data) override;
+    virtual bool linkHasAddresses() const override { return false; }
     virtual void send(const LinkLayerAddress& address, BufferBase& data) override;
 
     void receive(const std::vector<uint8_t>& data);

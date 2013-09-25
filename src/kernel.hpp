@@ -371,8 +371,10 @@ void Kernel<TraitsT>::sendNeighborSolicitation(NetworkInterface* ifc,
 
     NetworkControlProtocolMessageBuilder builder(*b);
     builder.createNeighborSolicitation(destAddr);
-    //! \todo: Add the link-layer address of the sender
-    //builder.addSourceLinkLayerAddressOption();
+    if (ifc->linkHasAddresses())
+    {
+        builder.addSourceLinkLayerAddressOption(ifc->linkLayerAddress());
+    }
 
     NetworkProtocolHeader header;
     header.sourceAddress = ifc->networkAddress().hostAddress();

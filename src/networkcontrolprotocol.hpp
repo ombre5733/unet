@@ -126,9 +126,11 @@ Target link-layer address option
 #include "event.hpp"
 #include "neighborcache.hpp"
 #include "networkaddress.hpp"
+#include "networkinterface.hpp"
 #include "networkprotocol.hpp"
 #include "linklayeraddress.hpp"
 
+#include <cstring>
 #include <cstdint>
 
 namespace uNet
@@ -207,15 +209,16 @@ struct SourceLinkLayerAddress
 {
     static const int ncpOptionType = 1;
 
-    SourceLinkLayerAddress()
+    SourceLinkLayerAddress(LinkLayerAddress lla)
         : ncpOptionHeader(ncpOptionType, sizeof(*this))
     {
+        std::memcpy(m_linkLayerAddress, &lla, sizeof(LinkLayerAddress));
     }
 
     LinkLayerAddress linkLayerAddress() const
     {
         LinkLayerAddress lla;
-        std::memcopy(&lla, linkLayerAddress, sizeof(LinkLayerAddress));
+        std::memcpy(&lla, m_linkLayerAddress, sizeof(LinkLayerAddress));
         return lla;
     }
 
@@ -227,13 +230,21 @@ struct TargetLinkLayerAddress
 {
     static const int ncpOptionType = 2;
 
-    TargetLinkLayerAddress()
+    TargetLinkLayerAddress(LinkLayerAddress lla)
         : ncpOptionHeader(ncpOptionType, sizeof(*this))
     {
+        std::memcpy(m_linkLayerAddress, &lla, sizeof(LinkLayerAddress));
+    }
+
+    LinkLayerAddress linkLayerAddress() const
+    {
+        LinkLayerAddress lla;
+        std::memcpy(&lla, m_linkLayerAddress, sizeof(LinkLayerAddress));
+        return lla;
     }
 
     NetworkControlProtocolOption ncpOptionHeader;
-    std::uint8_t linkLayerAddress[sizeof(LinkLayerAddress)];
+    std::uint8_t m_linkLayerAddress[sizeof(LinkLayerAddress)];
 };
 
 //! Searches an NCP option inside a range.
@@ -288,18 +299,14 @@ public:
     //! Adds a source link-layer address option.
     void addSourceLinkLayerAddressOption(LinkLayerAddress linkLayerAddress)
     {
-        NcpOption::SourceLinkLayerAddress llaOpt;
-        //llaOpt.linkLayerAddress = linkLayerAddress;
-        while (1);
+        NcpOption::SourceLinkLayerAddress llaOpt(linkLayerAddress);
         m_buffer.push_back(llaOpt);
     }
 
     //! Adds a target link-layer address option.
     void addTargetLinkLayerAddressOption(LinkLayerAddress linkLayerAddress)
     {
-        NcpOption::TargetLinkLayerAddress llaOpt;
-        //llaOpt.linkLayerAddress = linkLayerAddress;
-        while (1);
+        NcpOption::TargetLinkLayerAddress llaOpt(linkLayerAddress);
         m_buffer.push_back(llaOpt);
     }
 
@@ -307,94 +314,6 @@ private:
     //! The buffer in which the message will be built.
     BufferBase& m_buffer;
 };
-
-
-#if 0
-class UnetHeader;
-
-template <typename DerivedT>
-class NetworkControlProtocol
-{
-public:
-    static const int headerType = 1;
-
-    bool accepts(int nextHeaderType) const
-    {
-        return nextHeaderType == NetworkControlProtocol::headerType;
-    }
-
-    void handle(const char* data)
-    {
-        std::cout << "Ncp protocol - " << data << std::endl;
-    }
-
-    //NetworkControlProtocol(Kernel* kernel);
-
-    void createNeighborSolicitation()
-    {
-        /*
-        Buffer* b = BufferPool::allocate();
-        UnetHeader header;
-        header.sourceAddress = interface->networkAddress().hostAddress();
-        header.destinationAddress = HostAddress::multicastAddress();
-        header.nextHeader = 1;
-        b->push_back((std::uint8_t*)&header, sizeof(header));
-
-        NeighborSolicitation solicitation;
-        solicitation.targetAddress = destAddr;
-        b->push_back((std::uint8_t*)&solicitation, sizeof(solicitation));
-        */
-    }
-
-    void dispatch(const UnetHeader* netHeader, Buffer& packet)
-    {
-        std::cout << "NCP - dispatching packet of size " << packet.dataSize() << std::endl;
-        if (packet.dataSize() < sizeof(NetworkControlProtocolHeader))
-        {
-            // diagnostics.corruptHeader(packet.data());
-            return;
-        }
-
-        const NetworkControlProtocolHeader* header
-                = reinterpret_cast<const NetworkControlProtocolHeader*>(packet.dataBegin());
-
-        std::cout << "NCP - header type = " << (std::uint16_t)header->type << std::endl;
-        switch (header->type)
-        {
-            case 1:
-                derived()->onNcpNeighborSolicitation(packet);
-                break;
-            case 2:
-                derived()->onNcpNeighborAdvertisment(packet);
-                break;
-            default:
-                // diagnostics.unknownNcpType(packet);
-                break;
-        }
-    }
-
-    void onNcpNeighborSolicitation(Buffer&)
-    {
-        std::cout << "NCP - Received neighbor solicitation" << std::endl;
-    }
-
-    void onNcpNeighborAdvertisment(Buffer& packet)
-    {
-        std::cout << "NCP - Received neighbor advertisment" << std::endl;
-    }
-
-private:
-    DerivedT* derived()
-    {
-        return static_cast<DerivedT*>(this);
-    }
-
-    const DerivedT* derived() const
-    {
-        return static_cast<const DerivedT*>(this);
-    }
-};
-#endif
 
 template <typename KernelT>
 class NcpHandler
@@ -424,37 +343,46 @@ public:
                                                      npHeader, message);
                 break;
             case NeighborAdvertisment::ncpType:
-                derived()->onNcpNeighborAdvertisment(message);
+                derived()->onNcpNeighborAdvertisment(receivingInterface,
+                                                     npHeader, message);
                 break;
             default:
                 // diagnostics.unknownNcpType(packet);
                 break;
         }
+        message.dispose();
     }
 
     void onNcpNeighborSolicitation(NetworkInterface* receivingInterface,
                                    const NetworkProtocolHeader* npHeader,
                                    BufferBase& message)
     {
+        if (message.size() < sizeof(NeighborSolicitation))
+            return;
+
         std::cout << "NCP - Received neighbor solicitation" << std::endl;
 
         const NeighborSolicitation* solicitation
             = reinterpret_cast<const NeighborSolicitation*>(message.begin());
         message.moveBegin(sizeof(NeighborSolicitation));
 
+        // If the sender has transmitted the solicitation with a valid source
+        // address, we can create an entry in the neighbor cache right now.
+        // This saves another round-trip when we want to send a reply.
         if (!HostAddress(npHeader->sourceAddress).unspecified())
         {
-            // Update the neighbor cache.
             Neighbor* neighbor = derived()->nc.find(npHeader->sourceAddress);
-            /*
             if (!neighbor)
-                neighbor = derived().nc.createEntry();
-            */
-            if (NcpOption::SourceLinkLayerAddress* srcOption
-                    = NcpOption::find<NcpOption::SourceLinkLayerAddress>(
-                           message.begin(), message.end()))
+                neighbor = derived()->nc.createEntry(npHeader->sourceAddress,
+                                                     receivingInterface);
+            if (neighbor)
             {
-                neighbor->setLinkLayerAddress(srcOption->linkLayerAddress);
+                if (NcpOption::SourceLinkLayerAddress* srcLla
+                        = NcpOption::find<NcpOption::SourceLinkLayerAddress>(
+                            message.begin(), message.end()))
+                {
+                    neighbor->setLinkLayerAddress(srcLla->linkLayerAddress());
+                }
             }
         }
 
@@ -462,8 +390,11 @@ public:
 
         NetworkControlProtocolMessageBuilder builder(*buffer);
         builder.createNeighborAdvertisment(solicitation->targetAddress, true);
-        //! \todo: Add the link-layer address of the sender
-        //builder.addTargetLinkLayerAddressOption();
+        if (receivingInterface->linkHasAddresses())
+        {
+            builder.addTargetLinkLayerAddressOption(
+                        receivingInterface->linkLayerAddress());
+        }
 
         NetworkProtocolHeader header;
         header.sourceAddress = npHeader->destinationAddress;
@@ -485,9 +416,36 @@ public:
         }
     }
 
-    void onNcpNeighborAdvertisment(BufferBase& message)
+    void onNcpNeighborAdvertisment(NetworkInterface* receivingInterface,
+                                   const NetworkProtocolHeader* npHeader,
+                                   BufferBase& message)
     {
+        if (message.size() < sizeof(NeighborAdvertisment))
+            return;
+
         std::cout << "NCP - Received neighbor advertisment" << std::endl;
+
+        const NeighborAdvertisment* advertisment
+            = reinterpret_cast<const NeighborAdvertisment*>(message.begin());
+        message.moveBegin(sizeof(NeighborAdvertisment));
+
+        Neighbor* neighbor = derived()->nc.find(advertisment->targetAddress);
+        if (!neighbor)
+            return;
+
+        if (NcpOption::TargetLinkLayerAddress* targetLla
+            = NcpOption::find<NcpOption::TargetLinkLayerAddress>(
+                message.begin(), message.end()))
+        {
+            neighbor->setLinkLayerAddress(targetLla->linkLayerAddress());
+        }
+
+        while (!neighbor->sendQueue().empty())
+        {
+            BufferBase& buffer = neighbor->sendQueue().front();
+            neighbor->sendQueue().pop_front();
+            derived()->notify(Event::createSendRawMessageEvent(&buffer));
+        }
     }
 
 private:

@@ -75,7 +75,7 @@ public:
     //! Checks if the link to which this interface connects has addresses.
     //! Returns \p true, if the link to which this interface connects has
     //! addresses.
-    bool linkHasAddresses() const;
+    virtual bool linkHasAddresses() const = 0;
 
     //! Returns the link-layer address.
     //! Returns the link-layer address which uniquely identifies this interface

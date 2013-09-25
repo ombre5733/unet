@@ -26,7 +26,8 @@ public:
 
     Neighbor* createEntry(HostAddress address, NetworkInterface* ifc)
     {
-        Neighbor* entry = m_neighborPool.construct(address, ifc);
+        Neighbor* entry = m_neighborPool.construct(address);
+        entry->setInterface(ifc);
         entry->m_neighborCacheHook = m_neighbors;
         m_neighbors = entry;
         return entry;
