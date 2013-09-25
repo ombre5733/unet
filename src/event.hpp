@@ -145,7 +145,7 @@ public:
 
     //! Adds an event.
     //! Adds the \p event to the list.
-    void enqueue(Event event)
+    void enqueue(const Event& event)
     {
         Event* ev = m_eventPool.construct(event);
 

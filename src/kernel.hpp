@@ -216,7 +216,8 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
         {
             // This is an NCP message.
             message->moveBegin(sizeof(NetworkProtocolHeader));
-            NcpHandler<Kernel<TraitsT> >::handle(header, *message);
+            NcpHandler<Kernel<TraitsT> >::handle(event.networkInterface(),
+                                                 header, *message);
         }
         else
         {
@@ -233,6 +234,7 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
 template <typename TraitsT>
 void Kernel<TraitsT>::handleSendLinkLocalBroadcastEvent(const Event& event)
 {
+    std::cout << "handleSendLinkLocalBroadcastEvent" << std::endl;
     BufferBase* message = event.buffer();
     UNET_ASSERT(message->size() >= sizeof(NetworkProtocolHeader));
     UNET_ASSERT(event.networkInterface());
@@ -260,10 +262,11 @@ void Kernel<TraitsT>::handleSendRawMessageEvent(const Event& event)
         NetworkInterface* ifc = m_interfaces[idx];
         if (!ifc)
             break;
-        /*
-        if (!header->destinationAddress.isInSubnet(ifc->networkAddress()))
+        if (!HostAddress(header->destinationAddress).isInSubnet(
+                ifc->networkAddress()))
             continue;
 
+        /*
         cachedNeighbor = nc.createEntry(header->destinationAddress, ifc);
             nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
                               routedDestination, ifc);
@@ -276,6 +279,7 @@ void Kernel<TraitsT>::handleSendRawMessageEvent(const Event& event)
         sendNeighborSolicitation(ifc, routedDestination);
         */
 
+        //ifc->send();
         //ifc->send();
 
         return;
@@ -326,9 +330,11 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
     }
 
     // We have not sent anything to this neighor, yet, or the neighbor has
-    // been removed from the cache.
-    // We have to loop over all interfaces and look for one which is in the
-    // target's subnet.
+    // been removed from the cache. Now the problem is that we do not know the
+    // link-layer address of the target. We loop over all interfaces and
+    // look for one which is in the target's subnet, send a neighbor
+    // solicitation broadcast message over this interface and queue the message
+    // until we receive a neighbor advertisment.
     for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
     {
         NetworkInterface* ifc = m_interfaces[idx];
