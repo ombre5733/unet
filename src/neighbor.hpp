@@ -78,6 +78,13 @@ public:
         return m_sendQueue;
     }
 
+    //! Sets the link-layer address.
+    //! Sets the neighbor's link-layer address to \p addr.
+    void setLinkLayerAddress(LinkLayerAddress addr)
+    {
+        m_linkLayerAddress = addr;
+    }
+
     void setState(State state)
     {
         m_state = state;

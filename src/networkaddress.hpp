@@ -42,8 +42,8 @@ public:
         return m_address;
     }
 
-    //! Checks if an address is a multicast address.
-    //! Returns \p true, if the address is a multicast address.
+    //! Checks if this is a multicast address.
+    //! Returns \p true, if this host address is a multicast address.
     bool multicast() const
     {
         return (m_address & 0x1000) != 0;

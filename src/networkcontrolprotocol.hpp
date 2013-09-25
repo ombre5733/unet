@@ -212,8 +212,15 @@ struct SourceLinkLayerAddress
     {
     }
 
+    LinkLayerAddress linkLayerAddress() const
+    {
+        LinkLayerAddress lla;
+        std::memcopy(&lla, linkLayerAddress, sizeof(LinkLayerAddress));
+        return lla;
+    }
+
     NetworkControlProtocolOption ncpOptionHeader;
-    std::uint8_t linkLayerAddress[sizeof(LinkLayerAddress)];
+    std::uint8_t m_linkLayerAddress[sizeof(LinkLayerAddress)];
 };
 
 struct TargetLinkLayerAddress
@@ -394,7 +401,7 @@ class NcpHandler
 {
 public:
     void handle(NetworkInterface* receivingInterface,
-                const NetworkProtocolHeader* netHeader, BufferBase& message)
+                const NetworkProtocolHeader* npHeader, BufferBase& message)
     {
         // Ignore malformed messages.
         if (message.size() < sizeof(NetworkControlProtocolHeader))
@@ -414,7 +421,7 @@ public:
         {
             case NeighborSolicitation::ncpType:
                 derived()->onNcpNeighborSolicitation(receivingInterface,
-                                                     netHeader, message);
+                                                     npHeader, message);
                 break;
             case NeighborAdvertisment::ncpType:
                 derived()->onNcpNeighborAdvertisment(message);
@@ -433,8 +440,9 @@ public:
 
         const NeighborSolicitation* solicitation
             = reinterpret_cast<const NeighborSolicitation*>(message.begin());
+        message.moveBegin(sizeof(NeighborSolicitation));
 
-        if (!HostAddress(npHeader->sourceAddress).multicast())
+        if (!HostAddress(npHeader->sourceAddress).unspecified())
         {
             // Update the neighbor cache.
             Neighbor* neighbor = derived()->nc.find(npHeader->sourceAddress);
@@ -442,12 +450,13 @@ public:
             if (!neighbor)
                 neighbor = derived().nc.createEntry();
             */
+            if (NcpOption::SourceLinkLayerAddress* srcOption
+                    = NcpOption::find<NcpOption::SourceLinkLayerAddress>(
+                           message.begin(), message.end()))
+            {
+                neighbor->setLinkLayerAddress(srcOption->linkLayerAddress);
+            }
         }
-
-        /*
-        if (netHeader->sourceAddress.isSingleHost())
-            derived()->nc->findOrCreate(netHeader->sourceAddress);
-        */
 
         BufferBase* buffer = derived()->allocateBuffer();
 
