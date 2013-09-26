@@ -153,6 +153,7 @@ void Kernel<TraitsT>::send(HostAddress destination, int headerType,
     NetworkProtocolHeader header;
     header.destinationAddress = destination;
     header.nextHeader = headerType;
+    header.length = message->size() + sizeof(NetworkProtocolHeader);
     message->push_front(header);
     m_eventList.enqueue(Event::createMessageSendEvent(message));
 }
@@ -367,9 +368,9 @@ template <typename TraitsT>
 void Kernel<TraitsT>::sendNeighborSolicitation(NetworkInterface* ifc,
                                                HostAddress destAddr)
 {
-    BufferBase* b = allocateBuffer();
+    BufferBase* buffer = allocateBuffer();
 
-    NetworkControlProtocolMessageBuilder builder(*b);
+    NetworkControlProtocolMessageBuilder builder(*buffer);
     builder.createNeighborSolicitation(destAddr);
     if (ifc->linkHasAddresses())
     {
@@ -380,17 +381,18 @@ void Kernel<TraitsT>::sendNeighborSolicitation(NetworkInterface* ifc,
     header.sourceAddress = ifc->networkAddress().hostAddress();
     header.destinationAddress = HostAddress::multicastAddress();
     header.nextHeader = 1;
-    b->push_front(header);
+    header.length = buffer->size() + sizeof(NetworkProtocolHeader);
+    buffer->push_front(header);
 
     std::pair<bool, LinkLayerAddress> lla
             = ifc->neighborLinkLayerAddress(destAddr);
     if (lla.first)
     {
-        ifc->send(lla.second, *b);
+        ifc->send(lla.second, *buffer);
     }
     else
     {
-        ifc->broadcast(*b);
+        ifc->broadcast(*buffer);
     }
 }
 

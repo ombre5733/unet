@@ -400,6 +400,7 @@ public:
         header.sourceAddress = npHeader->destinationAddress;
         header.destinationAddress = npHeader->sourceAddress;
         header.nextHeader = 1;
+        header.length = buffer->size() + sizeof(NetworkProtocolHeader);
         buffer->push_front(header);
 
         // If the solicitation has been sent from an unspecified host, the
