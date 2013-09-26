@@ -20,7 +20,7 @@ public:
     //! Notifies the listener.
     //! Notifies the listener about an \p event. This method is called by
     //! the NetworkInterface to which this listener is attached.
-    virtual void notify(Event event) = 0;
+    virtual void notify(const Event& event) = 0;
 };
 
 } // namespace uNet

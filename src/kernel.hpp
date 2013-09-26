@@ -75,7 +75,7 @@ public:
     }
 
     //! \reimp
-    virtual void notify(Event event)
+    virtual void notify(const Event& event)
     {
         m_eventList.enqueue(event);
     }
@@ -200,7 +200,10 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
     BufferBase* message = event.buffer();
     // Throw away malformed messages.
     if (message->size() < sizeof(NetworkProtocolHeader))
+    {
+        message->dispose();
         return;
+    }
     UNET_ASSERT(event.networkInterface() != 0);
 
     const NetworkProtocolHeader* header
