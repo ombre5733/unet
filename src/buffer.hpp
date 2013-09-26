@@ -60,6 +60,10 @@ public:
         }
     };
 
+    //! Creates a buffer memento.
+    //! Creates a buffer memento which will return the buffer to the \p grabber
+    //! instead of disposing it.
+    //! \todo Take the buffer as argument here?
     explicit BufferMemento(BufferGrabber* grabber)
         : m_grabber(grabber),
           m_begin(0),
@@ -188,6 +192,9 @@ public:
         return m_end;
     }
 
+    //! Pops a type from the beginning of the buffer.
+    //! Pops an element of type \p TType from the beginning of the buffer and
+    //! returns it.
     template <typename TType>
     TType pop_front()
     {
@@ -260,6 +267,10 @@ typedef boost::intrusive::slist<
             &BufferBase::m_queueHook>,
         boost::intrusive::cache_last<true> > BufferQueue;
 
+//! A concrete buffer template.
+//! The Buffer is a concrete implementation of BufferBase. The size of the
+//! storage has to be provided at compile time via the template parameter
+//! \p TBufferSize.
 template <unsigned TBufferSize>
 class Buffer : public BufferBase
 {

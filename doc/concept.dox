@@ -66,12 +66,6 @@ the processing chain restrict themselves to prepending and appending data
 but do not modify the data elements between the iterators.
 
 
-Destination cache, neighbor cache and routing table
-
-The neighbor cache stores data about each neighbor to which a message has been
-sent. This includes information such as the network and link-layer address and
-the state of the neighbor, for example.
-
 Neighbor discovery
 
 Neighbor discovery is the process of determining the link-layer address of a
@@ -83,13 +77,28 @@ Solicitation or spontaneously to make itself known to other devices on the
 same link. If a neighbor discovery is in progress, all further messages are
 delayed until the reachability of the neighbor could be verified.
 
+
 Neighbor discovery states
 
 - Incomplete: The neighbor structure has just been created and the discovery
-  procedure is in progress.
+  procedure is in progress. The link-layer address of the neighbor is not
+  yet known.
 
-- Reachable: The reachability of the neighbor has been verified recently.
+- Reachable: The reachability of the neighbor has been verified recently. A
+  new transfer just sends the messages to the neighbor without the necessity
+  to verify the reachability again.
 
-- Probed:
+- Stale: The reachability of the neighbor is questionable because no transfer
+  has happened recently.
+
+- Probe: The neighbor discovery is in progress. All messages sent to this
+  neighbor are delayed until the neighbor is known to be reachable again.
+
+
+Destination cache, neighbor cache and routing table
+
+The neighbor cache stores data about each neighbor to which a message has been
+sent. This includes information such as the network and link-layer address and
+the state of the neighbor, for example.
 
 */
