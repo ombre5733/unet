@@ -128,13 +128,6 @@ private:
     const char* m_name;
     //! The address which has been assigned to the interface.
     NetworkAddress m_networkAddress;
-
-    typedef boost::intrusive::slist_member_hook<
-        boost::intrusive::link_mode<boost::intrusive::safe_link> >
-        poll_list_hook_t;
-
-    //! A hook for adding this interface to the polling list.
-    poll_list_hook_t m_pollListHook;
 };
 
 } // namespace uNet
