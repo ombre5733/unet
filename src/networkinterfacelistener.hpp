@@ -14,8 +14,17 @@ class NetworkInterfaceListener
 {
 public:
     //! Allocates a buffer.
-    //! Allocates a buffer and returns a pointer to it.
+    //! Allocates a buffer and returns a pointer to it. If no buffer is
+    //! available, the caller is blocked until a buffer is returned.
     virtual BufferBase* allocateBuffer() = 0;
+
+    /*
+    //! Tries to allocate a buffer.
+    //! Tries to allocate a buffer. If one was available, a pointer to it
+    //! is returned. Otherwise, a null-pointer is returned. The caller
+    //! will never be blocked.
+    virtual BufferBase* tryAllocateBuffer() = 0;
+    */
 
     //! Notifies the listener.
     //! Notifies the listener about an \p event. This method is called by
