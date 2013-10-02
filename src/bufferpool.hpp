@@ -45,10 +45,12 @@ public:
     }
 
     //! Tries to allocate a buffer.
+    //! If a buffer is available in the pool, it is allocated and a pointer
+    //! to it is returned. If no buffer is available, a null-pointer is
+    //! returned instead. The calling thread won't be blocked.
     buffer_type* try_allocate()
     {
-        //! \todo This needs to be implemented.
-        return this->allocate();
+        return m_pool.try_construct(this);
     }
 
 protected:
