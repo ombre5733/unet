@@ -24,6 +24,13 @@ public:
     //! is returned. Otherwise, a null-pointer is returned. The caller
     //! will never be blocked.
     virtual BufferBase* tryAllocateBuffer() = 0;
+
+    //! Tries to allocate a buffer.
+    //! Tries to allocate a buffer within the given \p timeout and returns
+    //! a pointer to it. If no buffer is available before the duration expires,
+    //! a null-pointer is returned.
+    virtual BufferBase* tryAllocateBufferFor(
+        const chrono::milliseconds& timeout) = 0;
     */
 
     //! Notifies the listener.
