@@ -102,6 +102,14 @@ typedef boost::intrusive::slist<
             &BufferMemento::m_mementoListHook>,
         boost::intrusive::cache_last<false> > BufferMementoStack;
 
+//! A buffer processor.
+//! A BufferProcessor is an object in the processing chain of a buffer.
+//! Every object in the processing stack can add itself to the buffer.
+class BufferProcessor
+{
+
+};
+
 //! An buffer disposer.
 //! This abstract base class specifies the interface of a disposer for an
 //! object of type BufferBase. Every buffer holds a pointer to one such object
@@ -140,7 +148,10 @@ public:
 
     //! Returns the buffer's capacity.
     //! Returns the number of bytes which the buffer can hold.
-    virtual std::size_t capacity() const = 0;
+    std::size_t capacity() const
+    {
+        return static_cast<std::size_t>(storageEnd() - storageBegin());
+    }
 
     //! Returns the buffer disposer.
     BufferDisposer* disposer() const
@@ -149,6 +160,9 @@ public:
     }
 
     //! Disposes the buffer.
+    //! If there is still a memento on the memento stack, the buffer is returned
+    //! to the top-most memento (the one which has been last recently added).
+    //! Otherwise, the buffer is handled over to the disposer.
     void dispose()
     {
         if (!m_mementoStack.empty())
@@ -156,8 +170,9 @@ public:
             BufferMemento& memento = m_mementoStack.front();
             m_begin = memento.m_begin;
             m_end = memento.m_end;
-            memento.m_grabber->grab(*this);
-            //! \todo m_mementoStack.pop_front_and_dispose();
+            BufferGrabber* grabber = memento.m_grabber;
+            m_mementoStack.pop_front();//! \todo should be popfront_and_dispose()
+            grabber->grab(*this);
         }
         else if (m_disposer)
             m_disposer->dispose(this);
@@ -270,8 +285,9 @@ typedef boost::intrusive::slist<
 //! A concrete buffer template.
 //! The Buffer is a concrete implementation of BufferBase. The size of the
 //! storage has to be provided at compile time via the template parameter
-//! \p TBufferSize.
-template <unsigned TBufferSize>
+//! \p TBufferSize and the depth of the processor stack in
+//! \p TProcessorStackDepth.
+template <unsigned TBufferSize, unsigned TProcessorStackDepth>
 class Buffer : public BufferBase
 {
 public:
@@ -281,14 +297,9 @@ public:
     //! Creates a buffer which will be destroyed via the buffer \p disposer.
     //! The disposer may be a null-pointer in which case it is never invoked.
     explicit Buffer(BufferDisposer* disposer = 0)
-        : BufferBase(static_cast<std::uint8_t*>(m_data.address()), disposer)
+        : BufferBase(static_cast<std::uint8_t*>(m_data.address()), disposer),
+          m_processorStackSize(0)
     {
-    }
-
-    //! \reimp
-    virtual std::size_t capacity() const
-    {
-        return BUFFER_SIZE;
     }
 
 protected:
@@ -307,6 +318,10 @@ protected:
 private:
     //! The storage of the buffer.
     boost::aligned_storage<BUFFER_SIZE>::type m_data;
+    //! The stack of buffer processors.
+    BufferProcessor* m_bufferProcessors[TProcessorStackDepth];
+    //! The processor stack size.
+    std::size_t m_processorStackSize;
 };
 
 } // namespace uNet

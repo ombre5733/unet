@@ -209,6 +209,10 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
     const NetworkProtocolHeader* header
             = reinterpret_cast<const NetworkProtocolHeader*>(message->begin());
 
+    // Perform message verification.
+    // - The destination address must not be unspecified.
+    // - The source address must not be multicast.
+
     HostAddress destAddr(header->destinationAddress);
     if (destAddr == event.networkInterface()->networkAddress().hostAddress()
         || destAddr.multicast())
@@ -232,6 +236,8 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
     else
     {
         // The packet has to be routed.
+
+        // Do not route packets which have an unspecified source address.
     }
 }
 
@@ -269,6 +275,9 @@ void Kernel<TraitsT>::handleSendRawMessageEvent(const Event& event)
         if (!HostAddress(header->destinationAddress).isInSubnet(
                 ifc->networkAddress()))
             continue;
+
+        //Continue here....
+        assert(0);
 
         /*
         cachedNeighbor = nc.createEntry(header->destinationAddress, ifc);

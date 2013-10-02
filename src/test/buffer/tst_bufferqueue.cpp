@@ -11,9 +11,9 @@ TEST(BufferQueue, Initialization)
 TEST(BufferQueue, push_and_pop)
 {
     uNet::BufferQueue q;
-    uNet::Buffer<256> b1;
-    uNet::Buffer<128> b2;
-    uNet::Buffer<64> b3;
+    uNet::Buffer<256, 1> b1;
+    uNet::Buffer<128, 2> b2;
+    uNet::Buffer< 64, 4> b3;
 
     q.push_front(b1);
     ASSERT_EQ(&b1, &q.front());

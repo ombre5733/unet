@@ -41,6 +41,8 @@ reachability of another device on the bus or to resolve its link-layer address.
 +---------------+---------------+---------------+---------------+
 |        Target address         |           reserved            |
 +---------------+---------------+---------------+---------------+
+| Options ...
++---------------
 \endcode
 
 Network protocol fields:
@@ -82,6 +84,8 @@ spontaneously or as a response to a neighbor solicitation.
 +---------------+---------------+---------------+---------------+
 |        Target address         |S|         reserved            |
 +---------------+---------------+---------------+---------------+
+| Options ...
++---------------
 \endcode
 
 Network protocol fields:
@@ -111,12 +115,67 @@ address of the interface which changed its link-layer address.
 
 NCP options
 
-NCP options can be appended to an NCP message. The following options are
-available:
+NCP options can be appended to an NCP message. Every NCP option starts with
+the following header
+\code
+0                   1
+0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-------
+|   NcpOptType  |     Length    | ...
++---------------+---------------+-------
+\endcode
+
+The \p NcpOptType field contains the type of the option and \p Length its
+length (tbd: in units of bytes or 32-bit words?). An implementation must
+silently ignore options which it does not understand. The \p Length field
+allows to skip these options.
+
+The following options are available:
 
 Source link-layer address option
 
+\code
+0                   1                   2                   3
+0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|   NcpOptType  |     Length    |             ????              |
++---------------+---------------+---------------+---------------+
+| ????????????????????????????????????????????????????????????? |
++---------------+---------------+---------------+---------------+
+\endcode
+
+NCP option fields
+    NcpOptType
+            1
+
+    Length  ???
+
+    Link-layer address
+            The link-layer address of the source which sent the Neighbor
+            Solicitation.
+
+
 Target link-layer address option
+
+\code
+0                   1                   2                   3
+0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|   NcpOptType  |     Length    |             ????              |
++---------------+---------------+---------------+---------------+
+| ????????????????????????????????????????????????????????????? |
++---------------+---------------+---------------+---------------+
+\endcode
+
+NCP option fields
+    NcpOptType
+            1
+
+    Length  ???
+
+    Link-layer address
+            The link-layer address of the target which sent the Neighbor
+            Advertisment.
 
 */
 
@@ -273,7 +332,8 @@ OptT* find(std::uint8_t* begin, std::uint8_t* end)
 class NetworkControlProtocolMessageBuilder
 {
 public:
-    NetworkControlProtocolMessageBuilder(BufferBase& buffer)
+    //! Creates a builder for NCP messages.
+    explicit NetworkControlProtocolMessageBuilder(BufferBase& buffer)
         : m_buffer(buffer)
     {
     }
@@ -319,6 +379,11 @@ template <typename KernelT>
 class NcpHandler
 {
 public:
+    //! Handles a network control protocol message.
+    //! Handles an incomming NCP message which has been received via the
+    //! interface \p receivingInterface. The \p npHeader points to the
+    //! network protocol header in the message. The NCP payload is passed
+    //! in the \p message buffer.
     void handle(NetworkInterface* receivingInterface,
                 const NetworkProtocolHeader* npHeader, BufferBase& message)
     {
@@ -353,6 +418,17 @@ public:
         message.dispose();
     }
 
+private:
+    //! Handle a neighbor solicitation.
+    //! This method is called upon receiving a neighbor solicitation via
+    //! the network interface \p receivingInterface. The \p npHeader
+    //! points to the network protocol header. The \p message buffer contains
+    //! the solicitation's payload.
+    //!
+    //! The function creates a neighbor advertisment which will be sent back
+    //! over the link. If the solicitation has been sent from a valid unicast
+    //! address and there is place in the neighbor cache, a cache entry
+    //! is generated for the neighbor.
     void onNcpNeighborSolicitation(NetworkInterface* receivingInterface,
                                    const NetworkProtocolHeader* npHeader,
                                    BufferBase& message)
@@ -417,6 +493,11 @@ public:
         }
     }
 
+    //! Handles a neighbor advertisment.
+    //! This method is called upon receiving a neighbor advertisment via
+    //! the network interface \p receivingInterface. The \p npHeader
+    //! points to the network protocol header. The \p message buffer contains
+    //! the advertisment's payload.
     void onNcpNeighborAdvertisment(NetworkInterface* receivingInterface,
                                    const NetworkProtocolHeader* npHeader,
                                    BufferBase& message)
@@ -432,7 +513,11 @@ public:
 
         Neighbor* neighbor = derived()->nc.find(advertisment->targetAddress);
         if (!neighbor)
+        {
+            //! \todo If there is enough space in the neighbor cache, we might
+            //! want to create an entry there.
             return;
+        }
 
         if (NcpOption::TargetLinkLayerAddress* targetLla
             = NcpOption::find<NcpOption::TargetLinkLayerAddress>(
@@ -441,6 +526,8 @@ public:
             neighbor->setLinkLayerAddress(targetLla->linkLayerAddress());
         }
 
+        // Send all messages which have been queued until the reachability
+        // could be confirmed.
         while (!neighbor->sendQueue().empty())
         {
             BufferBase& buffer = neighbor->sendQueue().front();

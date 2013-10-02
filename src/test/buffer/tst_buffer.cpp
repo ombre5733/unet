@@ -4,7 +4,7 @@
 
 #include <cstring>
 
-typedef uNet::Buffer<256> buffer_t;
+typedef uNet::Buffer<256, 4> buffer_t;
 
 class TestBufferDisposer : public uNet::BufferDisposer
 {

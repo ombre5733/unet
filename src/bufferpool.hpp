@@ -19,7 +19,7 @@ class BufferPool : public BufferDisposer
 {
 public:
     //! The type of the buffer in this pool.
-    typedef Buffer<TBufferSize> buffer_type;
+    typedef Buffer<TBufferSize, 4> buffer_type;
 
     //! Allocates a buffer from the pool.
     //! Allocates a buffer from the pool and returns a pointer to it. If the

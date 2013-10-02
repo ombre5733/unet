@@ -28,7 +28,6 @@ ISO-OSI layer model. A famous example is TCP/IP over ethernet, where a TCP
 packet is wrapped in an IP packet which is again wrapped in an ethernet MAC
 frame.
 
-
 Buffer
 
 A buffer is the central data storage unit used in the message processing
@@ -68,14 +67,18 @@ but do not modify the data elements between the iterators.
 
 Neighbor discovery
 
-Neighbor discovery is the process of determining the link-layer address of a
-neighbor and verifying its reachability. Neighbor discovery relies on two
-messages: the Neighbor Solicitation and the Neighbor Advertisment. A Neighbor
-Solicitation is sent by a device which wants to discover a neighbor. A
-Neighbor Advertisment is sent by a device either as a response to a Neighbor
-Solicitation or spontaneously to make itself known to other devices on the
-same link. If a neighbor discovery is in progress, all further messages are
-delayed until the reachability of the neighbor could be verified.
+The neighbor discovery process serves two purposes: 1.) determining the
+link-layer address of a neighbor and 2.) verifying its reachability.
+Neighbor discovery relies on two messages: the Neighbor Solicitation and the
+Neighbor Advertisment. A Neighbor Solicitation is sent by a device which wants
+to discover a neighbor. A Neighbor Advertisment is sent by a device either in
+response to a Neighbor Solicitation or spontaneously to make itself known to
+other devices on the same link.
+
+If a neighbor discovery is in progress, all further messages are delayed until
+the reachability of the neighbor could be verified. So even if two processes
+simultaneously start to transmit to the same neighbor, the Neighbor Solicitation
+is sent only once.
 
 
 Neighbor discovery states

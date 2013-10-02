@@ -4,16 +4,18 @@
 
 TEST(BufferPool, Constructor)
 {
-    uNet::BufferPool<256, 1> p;
+    typedef uNet::BufferPool<256, 1> pool_t;
+    pool_t p;
     ASSERT_FALSE(p.empty());
 }
 
 TEST(BufferPool, allocate_and_release)
 {
-    uNet::BufferPool<256, 1> p;
+    typedef uNet::BufferPool<256, 1> pool_t;
+    pool_t p;
     for (int i = 0; i < 100; ++i)
     {
-        uNet::Buffer<256>* b = p.allocate();
+        pool_t::buffer_type* b = p.allocate();
         ASSERT_TRUE(b != 0);
         ASSERT_TRUE(p.empty());
         ASSERT_EQ(&p, b->disposer());
@@ -25,10 +27,11 @@ TEST(BufferPool, allocate_and_release)
 
 TEST(BufferPool, allocate_and_dispose)
 {
-    uNet::BufferPool<256, 1> p;
+    typedef uNet::BufferPool<256, 1> pool_t;
+    pool_t p;
     for (int i = 0; i < 100; ++i)
     {
-        uNet::Buffer<256>* b = p.allocate();
+        pool_t::buffer_type* b = p.allocate();
         ASSERT_TRUE(b != 0);
         ASSERT_TRUE(p.empty());
         ASSERT_EQ(&p, b->disposer());
