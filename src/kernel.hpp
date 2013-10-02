@@ -150,6 +150,10 @@ template <typename TraitsT>
 void Kernel<TraitsT>::send(HostAddress destination, int headerType,
                            BufferBase* message)
 {
+    // Be restrictive on what we send.
+    if (destination.unspecified())
+        uNet::throw_exception(-1);//! \todo Use a system_error
+
     NetworkProtocolHeader header;
     header.destinationAddress = destination;
     header.nextHeader = headerType;
@@ -197,21 +201,21 @@ void Kernel<TraitsT>::eventLoop()
 template <typename TraitsT>
 void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
 {
+    UNET_ASSERT(event.networkInterface() != 0);
+
     BufferBase* message = event.buffer();
+    const NetworkProtocolHeader* header
+            = reinterpret_cast<const NetworkProtocolHeader*>(message->begin());
+
     // Throw away malformed messages.
-    if (message->size() < sizeof(NetworkProtocolHeader))
+    if (   message->size() < sizeof(NetworkProtocolHeader)
+        || message->size() < header->length
+        || HostAddress(header->destinationAddress).unspecified()
+        || HostAddress(header->sourceAddress).multicast())
     {
         message->dispose();
         return;
     }
-    UNET_ASSERT(event.networkInterface() != 0);
-
-    const NetworkProtocolHeader* header
-            = reinterpret_cast<const NetworkProtocolHeader*>(message->begin());
-
-    // Perform message verification.
-    // - The destination address must not be unspecified.
-    // - The source address must not be multicast.
 
     HostAddress destAddr(header->destinationAddress);
     if (destAddr == event.networkInterface()->networkAddress().hostAddress()
@@ -237,7 +241,13 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
     {
         // The packet has to be routed.
 
-        // Do not route packets which have an unspecified source address.
+        // Do not route packets which have an unspecified source address
+        // because we cannot send a reply.
+        if (HostAddress(header->sourceAddress).unspecified())
+        {
+            message->dispose();
+            return;
+        }
     }
 }
 
