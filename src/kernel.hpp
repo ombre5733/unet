@@ -23,10 +23,12 @@ struct default_kernel_traits
     //! The size of one buffer in bytes.
     static const unsigned buffer_size = 256;
 
-    //! The maximum number of buffers.
+    //! The maximum number of buffers. If this value is set to zero, the number
+    //! of buffers is unlimited and only restricted by the available memory.
     static const unsigned max_num_buffers = 10;
 
-    //! The maximum length of the kernel's event list.
+    //! The maximum length of the kernel's event list. If this value is set
+    //! to zero, no limit is imposed on the number of events.
     static const unsigned max_num_events = 20;
 
     //! The maximum number of interfaces which can be added to the kernel.
@@ -39,6 +41,44 @@ struct default_kernel_traits
     //! create latency and traffic on the bus.
     static const unsigned max_num_cached_neighbors = 5;
 };
+
+namespace detail
+{
+template <unsigned TBufferSize, unsigned TMaxNumBuffers, bool TGreaterZero>
+struct buffer_pool_type_dispatch_helper;
+
+template <unsigned TBufferSize, unsigned TMaxNumBuffers>
+struct buffer_pool_type_dispatch_helper<TBufferSize, TMaxNumBuffers, true>
+{
+    typedef BufferPool<TBufferSize, TMaxNumBuffers> type;
+};
+
+// A helper struct to dispatch the type of the buffer pool for the kernel.
+template <unsigned TBufferSize, unsigned TMaxNumBuffers>
+struct buffer_pool_type_dispatcher
+{
+    typedef typename buffer_pool_type_dispatch_helper<
+                         TBufferSize, TMaxNumBuffers,
+                         (TMaxNumBuffers > 0)>::type type;
+};
+
+template <unsigned TMaxNumEvents, bool TGreaterZero>
+struct event_list_type_dispatch_helper;
+
+template <unsigned TMaxNumEvents>
+struct event_list_type_dispatch_helper<TMaxNumEvents, true>
+{
+    typedef EventList<TMaxNumEvents> type;
+};
+
+template <unsigned TMaxNumEvents>
+struct event_list_type_dispatcher
+{
+    typedef typename event_list_type_dispatch_helper<
+                         TMaxNumEvents, (TMaxNumEvents > 0)>::type type;
+};
+
+} // namespace detail
 
 //! The network kernel.
 //! The network kernel is the central unit in the network implementation.
@@ -85,12 +125,14 @@ public:
 
 private:
     //! The type of the buffer pool.
-    typedef BufferPool<traits_t::buffer_size,
-                       traits_t::max_num_buffers> buffer_pool_t;
+    typedef typename detail::buffer_pool_type_dispatcher<
+                         traits_t::buffer_size,
+                         traits_t::max_num_buffers>::type buffer_pool_t;
     //! The pool from which buffers are allocated.
     buffer_pool_t m_bufferPool;
 
-    typedef EventList<traits_t::max_num_events> event_list_t;
+    typedef typename detail::event_list_type_dispatcher<
+                         traits_t::max_num_events>::type event_list_t;
     //! The list of events which has to be processed.
     event_list_t m_eventList;
 
