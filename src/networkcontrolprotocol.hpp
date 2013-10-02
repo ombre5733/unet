@@ -473,7 +473,7 @@ private:
         }
 
         NetworkProtocolHeader header;
-        header.sourceAddress = npHeader->destinationAddress;
+        header.sourceAddress = HostAddress();//! \todo: npHeader->destinationAddress;
         header.destinationAddress = npHeader->sourceAddress;
         header.nextHeader = 1;
         header.length = buffer->size() + sizeof(NetworkProtocolHeader);
