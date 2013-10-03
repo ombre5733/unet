@@ -240,6 +240,12 @@ public:
         std::memcpy(m_begin, &data, sizeof(TType));
     }
 
+    //! Places the begin and end pointers to the beginning of the storage.
+    void rewind()
+    {
+        m_begin = m_end = storageBegin();
+    }
+
     //! Returns the size of the data.
     //! Returns the size of the data in the buffer, i.e. the difference
     //! between the begin() and end() iterators.
@@ -291,8 +297,6 @@ template <unsigned TBufferSize, unsigned TProcessorStackDepth>
 class Buffer : public BufferBase
 {
 public:
-    static const int BUFFER_SIZE = 256; //! \todo Add this as template parameter
-
     //! Creates a buffer.
     //! Creates a buffer which will be destroyed via the buffer \p disposer.
     //! The disposer may be a null-pointer in which case it is never invoked.
@@ -312,12 +316,12 @@ protected:
     //! \reimp
     virtual std::uint8_t* storageEnd() const
     {
-        return static_cast<std::uint8_t*>(m_data.address()) + BUFFER_SIZE;
+        return static_cast<std::uint8_t*>(m_data.address()) + TBufferSize;
     }
 
 private:
     //! The storage of the buffer.
-    boost::aligned_storage<BUFFER_SIZE>::type m_data;
+    typename boost::aligned_storage<TBufferSize>::type m_data;
     //! The stack of buffer processors.
     BufferProcessor* m_bufferProcessors[TProcessorStackDepth];
     //! The processor stack size.
