@@ -101,7 +101,7 @@ Neighbor discovery states
 Destination cache, neighbor cache and routing table
 
 The neighbor cache stores data about each neighbor to which a message has been
-sent. This includes information such as the network and link-layer address and
-the state of the neighbor, for example.
+sent. This includes information such as the network address and the link-layer
+address as well as the state of the neighbor discovery, for example.
 
 */
