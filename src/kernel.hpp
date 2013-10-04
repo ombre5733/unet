@@ -194,7 +194,7 @@ void Kernel<TraitsT>::send(HostAddress destination, int headerType,
 {
     // Be restrictive on what we send.
     if (destination.unspecified())
-        uNet::throw_exception(-1);//! \todo Use a system_error
+        ::uNet::throw_exception(-1);//! \todo Use a system_error
 
     NetworkProtocolHeader header;
     header.destinationAddress = destination;

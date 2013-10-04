@@ -199,8 +199,52 @@ void main(MemoryBus* bus)
 
 } // namespace app2
 
+#include "bufferhandlerchain.hpp"
+
+class MyBufferHandler : public uNet::BufferHandler
+{
+public:
+    virtual bool accepts(int headerType) const
+    {
+        return true;
+    }
+
+    virtual void handle(int headerType, uNet::BufferBase &message)
+    {
+        std::cout << ">>Got a buffer of size " << message.size()
+                  << " with unknown header type " << headerType
+                  << "<<" << std::endl;
+    }
+};
+
+void test_bufferhandlerchain()
+{
+    using namespace uNet;
+
+    typedef boost::mpl::vector<TcpHandlerStub, UdpHandlerStub> protocol_list_t;
+    typedef make_buffer_handler_chain<protocol_list_t>::type chain;
+
+    chain c;
+    MyBufferHandler h;
+    c.get<DefaultBufferHandler>()->setCustomHandler(&h);
+    c.get<uNet::TcpHandlerStub>()->setOption(2);
+
+    Buffer<256, 4>* b = new Buffer<256, 4>();
+    b->push_back(std::uint16_t(0xABCD));
+    c.dispatch(10, *b);
+    b->push_back(std::uint16_t(0xEF01));
+    c.dispatch(11, *b);
+    b->push_back(std::uint16_t(0x2106));
+    c.dispatch(12, *b);
+
+    std::cout << std::endl << std::endl;
+}
+
 int main()
 {
+    test_bufferhandlerchain();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
     MemoryBus bus;
 
     std::thread t1(app1::main, &bus);
