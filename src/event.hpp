@@ -139,8 +139,8 @@ class EventList
 {
 public:
     EventList()
-        : m_numEvents(0),
-          m_eventList(0)
+        : m_eventList(0),
+          m_numEvents(0)
     {
     }
 
