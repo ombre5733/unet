@@ -251,7 +251,7 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
 
     // Throw away malformed messages.
     if (   message->size() < sizeof(NetworkProtocolHeader)
-        || message->size() < header->length
+        || message->size() != header->length
         || HostAddress(header->destinationAddress).unspecified()
         || HostAddress(header->sourceAddress).multicast())
     {

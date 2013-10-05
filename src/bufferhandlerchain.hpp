@@ -9,6 +9,26 @@
 namespace uNet
 {
 
+//! The service base class.
+class SppServiceBase
+{
+public:
+    virtual void accepts(int port) const = 0;
+    virtual void handle(BufferBase& message) = 0;
+};
+
+class HttpServer
+{
+public:
+    void handle(BufferBase& message)
+    {
+        std::cout << "Message received the HTTP server" << std::endl;
+        message.dispose();
+    }
+};
+
+
+
 class TcpHandlerStub
 {
 protected:
@@ -68,10 +88,15 @@ private:
     int m_option;
 };
 
-class BufferHandler
+//! The base class of all buffer handlers.
+//! The BufferHandlerBase is the base class of all buffer handlers.
+class BufferHandlerBase
 {
 public:
     virtual bool accepts(int headerType) const = 0;
+
+    //! \note If the \p message is not passed on to another handler, it has
+    //! to be disposed.
     virtual void handle(int headerType, BufferBase& message) = 0;
 };
 
@@ -122,13 +147,13 @@ public:
         }
     }
 
-    void setCustomHandler(BufferHandler* handler)
+    void setCustomHandler(BufferHandlerBase* handler)
     {
         m_customHandler = handler;
     }
 
 private:
-    BufferHandler* m_customHandler;
+    BufferHandlerBase* m_customHandler;
 };
 
 typedef BufferHandlerChain<void, void> DefaultBufferHandler;

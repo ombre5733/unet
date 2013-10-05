@@ -30,6 +30,39 @@ The \p Length is the total length of the message including this header. The
 <tt>Source address</tt> and <tt>Destination address</tt> fields contain
 the source and destination addresses of the sending and receiving
 interfaces.
+
+Network Address
+
+A network address consists of two parts: (i) a prefix which is common to
+all devices on a link and (ii) a unique device address.
+
+TODO: Describe
+100  --> 1 11
+110  --> 11 1
+
+Unspecified Address
+
+The address 0 is defined as the unspecified address. The unspecified address
+can be used as source address by interfaces to which no address has been
+assigned, yet. This is required to allow dynamic address assignment over the
+network protocol, for example.
+
+Multicast Addresses
+
+Multicast Addresses are used to simultaneously send data to more than one
+device. The following multicast addresses are defined:
+- Link-local all-device multicast address: Sends data to all devices on one
+  link. These messages must not be routed.
+- All-device multicast address: Sends data to all devices. These messages
+  are routed.
+
+A network message must be discarded if any of the following is true.
+- The \p Length field does not match the data size.
+- The destination address is unspecified.
+- The source address is a multicast address.
+
+A network message must not be routed if the source address is unspecified.
+
 */
 
 struct NetworkProtocolHeader

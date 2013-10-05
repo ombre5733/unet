@@ -201,7 +201,7 @@ void main(MemoryBus* bus)
 
 #include "bufferhandlerchain.hpp"
 
-class MyBufferHandler : public uNet::BufferHandler
+class MyBufferHandler : public uNet::BufferHandlerBase
 {
 public:
     virtual bool accepts(int headerType) const
@@ -217,25 +217,39 @@ public:
     }
 };
 
+
+#include "protocol/simpleportprotocol.hpp"
 void test_bufferhandlerchain()
 {
     using namespace uNet;
 
-    typedef boost::mpl::vector<TcpHandlerStub, UdpHandlerStub> protocol_list_t;
-    typedef make_buffer_handler_chain<protocol_list_t>::type chain;
+    typedef boost::mpl::vector<
+                spp_port_service_map<100, HttpServer>
+            >::type spp_service_list_t;
+    typedef SimplePortProtocol<spp_service_list_t> spp;
 
-    chain c;
+    typedef boost::mpl::vector<TcpHandlerStub, UdpHandlerStub, spp> protocol_list_t;
+    typedef make_buffer_handler_chain<protocol_list_t>::type protocols;
+
+
+    protocols pc;
     MyBufferHandler h;
-    c.get<DefaultBufferHandler>()->setCustomHandler(&h);
-    c.get<uNet::TcpHandlerStub>()->setOption(2);
+    pc.get<DefaultBufferHandler>()->setCustomHandler(&h);
+    pc.get<uNet::TcpHandlerStub>()->setOption(2);
 
     Buffer<256, 4>* b = new Buffer<256, 4>();
     b->push_back(std::uint16_t(0xABCD));
-    c.dispatch(10, *b);
+    pc.dispatch(10, *b);
     b->push_back(std::uint16_t(0xEF01));
-    c.dispatch(11, *b);
+    pc.dispatch(11, *b);
     b->push_back(std::uint16_t(0x2106));
-    c.dispatch(12, *b);
+    pc.dispatch(12, *b);
+
+    SimplePortProtocolHeader hdr;
+    hdr.sourcePort = 99;
+    hdr.destinationPort = 100;
+    b->push_front(hdr);
+    pc.dispatch(2, *b);
 
     std::cout << std::endl << std::endl;
 }

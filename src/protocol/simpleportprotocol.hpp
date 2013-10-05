@@ -3,23 +3,28 @@
 
 #include "../config.hpp"
 
+#include "../buffer.hpp"
+
 #include <cstdint>
 
 namespace uNet
 {
 
-template <unsigned TPort, typename TService>
+template <std::uint8_t TPort, typename TService>
 struct spp_port_service_map
 {
-    static const unsigned port = TPort;
+    static const std::uint8_t port = TPort;
     typedef TService type;
 };
+
+namespace detail
+{
 
 template <typename TServicePortMap, typename TBaseChain>
 class SppServiceChain : public TServicePortMap::type, public TBaseChain
 {
 public:
-    void dispatch(int port, BufferBase& message)
+    void dispatch(std::uint8_t port, BufferBase& message)
     {
         if (TServicePortMap::port == port)
             TServicePortMap::type::handle(message);
@@ -38,10 +43,6 @@ public:
         message.dispose();
     }
 };
-typedef SppServiceChain<void, void> SppDefaultService;
-
-namespace detail
-{
 
 struct make_spp_service_chain_helper
 {
@@ -55,46 +56,59 @@ struct make_spp_service_chain_helper
     };
 };
 
-} // namespace detail
-
 template <typename THandlerTypes>
 struct make_spp_service_chain
 {
     typedef typename boost::mpl::fold<
                          THandlerTypes,
-                         SppDefaultService,
-                         detail::make_spp_service_chain_helper>::type type;
+                         SppServiceChain<void, void>,
+                         make_spp_service_chain_helper>::type type;
 
 };
 
-//! A simple port-based protocol.
+} // namespace detail
+
+typedef detail::SppServiceChain<void, void> SppDefaultService;
+
 struct SimplePortProtocolHeader
 {
     std::uint8_t sourcePort;
     std::uint8_t destinationPort;
-    std::uint16_t reserved;
+    std::uint8_t reserved[6];
 };
 
+//! A simple port-based protocol.
+//!
+//! SimplePortProtocol implements the handling of SPP messages.
+//!
+//! SimplePortProtocol implements the \p ProtocolHandler concept.
 template <typename TSppServices>
-class SimplePortProtocolHandler : protected make_spp_service_chain<TSppServices>::type
+class SimplePortProtocol
+        : protected detail::make_spp_service_chain<TSppServices>::type
 {
-    typedef typename make_spp_service_chain<TSppServices>::type service_list_t;
-protected:
-    static const int headerType = 20;
+    typedef typename detail::make_spp_service_chain<TSppServices>::type
+        service_list_t;
 
+protected:
+    //! The value of the "Next header" field in the network protocol.
+    static const int headerType = 2;
+
+    //! Returns \p true, if \p headerType equals the SPP header type.
     bool accepts(int headerType) const
     {
-        return headerType == SimplePortProtocolHandler::headerType;
+        return headerType == SimplePortProtocol::headerType;
     }
 
-    void handle(int headerType, BufferBase& message)
+    //! Handles an SPP message.
+    //! Handles the SPP message \p message.
+    void handle(int /*headerType*/, BufferBase& message)
     {
-        std::cout << "This is a SPP" << std::endl;
         if (message.size() < sizeof(SimplePortProtocolHeader))
         {
             message.dispose();
             return;
         }
+        std::cout << "This is a SPP message" << std::endl;
 
         const SimplePortProtocolHeader* header
                 = reinterpret_cast<const SimplePortProtocolHeader*>(

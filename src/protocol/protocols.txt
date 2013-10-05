@@ -1,0 +1,3 @@
+The following list shows the mapping of the header type to the protocol:
+1 - Network Control Protocol
+2 - Simple Port Protocol

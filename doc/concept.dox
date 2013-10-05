@@ -104,4 +104,17 @@ The neighbor cache stores data about each neighbor to which a message has been
 sent. This includes information such as the network address and the link-layer
 address as well as the state of the neighbor discovery, for example.
 
+
+Concepts
+========
+
+A class which implements the ProtocolHandler concept must provide the following
+functions
+- bool accepts(int headerType) const
+- void handle(int headerType, BufferBase& message)
+
+A class which implements the ServiceHandler concept must provide the following
+functions
+- void handle(BufferBase& message)
+
 */
