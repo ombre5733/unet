@@ -242,7 +242,7 @@ void test_server(uNet::SimpleMessageProtocol* smp)
     using namespace uNet;
 
     Socket skt(*smp);
-
+    skt.bind(23);
     skt.listen();
 
     while (1)
@@ -306,7 +306,7 @@ void test_bufferhandlerchain()
     {
         SimpleMessageProtocolHeader hdr;
         hdr.sourcePort = 21;
-        hdr.destinationPort = 42;
+        hdr.destinationPort = 23;
         b->push_front(hdr);
         pc.dispatch(2, *b);
     }

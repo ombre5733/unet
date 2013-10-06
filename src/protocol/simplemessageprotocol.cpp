@@ -10,19 +10,38 @@ Socket::~Socket()
 {
     if (m_addedToProtocolHandler)
         m_protocolHandler.removeSocket(*this);
+
+    while (!m_packetQueue.empty())
+    {
+        BufferBase& packet = m_packetQueue.front();
+        m_packetQueue.pop_front();
+        packet.dispose();
+    }
 }
 
 void Socket::accept()
 {
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
-    m_state = Connected;
+    if (m_state != Listening)
+        ::uNet::throw_exception(-1); //! \todo system_error
+    m_state = Receiving;
+}
+
+void Socket::bind(std::uint8_t port)
+{
+    OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
+    m_localPort = port;
+    m_state = Bound;
 }
 
 void Socket::listen()
 {
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
+    if (m_state != Bound)
+        ::uNet::throw_exception(-1); //! \todo system_error
     m_protocolHandler.addSocket(*this);
     m_addedToProtocolHandler = true;
+    m_state = Listening;
 }
 
 BufferBase* Socket::receive()
@@ -34,16 +53,14 @@ BufferBase* Socket::receive()
     return &packet;
 }
 
-void Socket::receiveFromProtocol(BufferBase& packet)
+bool Socket::acceptPacket(std::uint8_t destinationPort, BufferBase& packet)
 {
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
-    if (m_state != Connected)
-        packet.dispose();
-    else
-    {
-        m_packetQueue.push_back(packet);
-        m_packetSemaphore.post();
-    }
+    if (m_state != Receiving || destinationPort != m_localPort)
+        return false;
+
+    m_packetQueue.push_back(packet);
+    m_packetSemaphore.post();
 }
 
 // ----=====================================================================----
@@ -74,7 +91,14 @@ void SimpleMessageProtocol::receive(std::uint8_t, BufferBase& packet)
         return;
     }
 
-    m_socketList.front().receiveFromProtocol(packet);
+    for (socket_list_t::iterator iter = m_socketList.begin(),
+                             end_iter = m_socketList.end();
+         iter != end_iter; ++iter)
+    {
+        if (iter->acceptPacket(header->destinationPort, packet))
+            return;
+    }
+    packet.dispose();
 }
 
 void SimpleMessageProtocol::addSocket(Socket& socket)
