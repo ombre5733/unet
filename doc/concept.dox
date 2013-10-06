@@ -104,6 +104,28 @@ The neighbor cache stores data about each neighbor to which a message has been
 sent. This includes information such as the network address and the link-layer
 address as well as the state of the neighbor discovery, for example.
 
+Sending Algorithm
+-----------------
+
+The following steps are necessary when sending a packet:
+
+1. Determination of the next neighbor
+   The kernel consults the routing table in order to determine the address of
+   the next neighbor.
+2. Neighbor lookup
+   The kernel queries the neighbor cache for information about the neighbor
+   such as the associated link-layer address. If no entry is found in the
+   cache, a new entry is generated. Then the link-layer address resolution is
+   initiated.
+3. Link-layer address resolution
+   The kernel sends a Neighbor Solicitation message as link-local broadcast
+   and waits for the other device's response. All further packages which are
+   sent to the same device are delayed until the reachability of the neighbor
+   has been verified.
+4. Sending the queued packets
+   Once the reachability of the neighbor is known, all packets in the queue
+   are sent.
+
 
 Concepts
 ========
