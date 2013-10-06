@@ -42,7 +42,8 @@ struct default_kernel_traits
     //! create latency and traffic on the bus.
     static const unsigned max_num_cached_neighbors = 5;
 
-    //typedef boost::mpl::vector<>
+    //! A list of protocols which are attached to the kernel.
+    typedef boost::mpl::vector<> protocol_list_t;
 };
 
 namespace detail
@@ -103,6 +104,12 @@ public:
     //! Registers the interface \p ifc in the kernel.
     void addInterface(NetworkInterface* ifc);
 
+    template <typename TProtocol>
+    TProtocol* protocolHandler()
+    {
+        return m_protocolChain.template get<TProtocol>();
+    }
+
     //! Sends a packet.
     //! Sends the given \p packet to the neighbor specified by the
     //! \p destination address. Before sending, a network header is prepended
@@ -122,9 +129,6 @@ public:
     {
         m_eventList.enqueue(event);
     }
-
-    //! \todo HACK: Remove this again.
-    void (*messageReceivedCallback)(BufferBase* buf);
 
 private:
     //! The type of the buffer pool.
@@ -148,6 +152,13 @@ private:
 
     RoutingTable m_routingTable;
 
+    //! The type of the protocol chain.
+    typedef typename make_protocol_handler_chain<
+                         typename traits_t::protocol_list_t>::type
+                         protocol_chain_t;
+    //! The protocol chain.
+    protocol_chain_t m_protocolChain;
+
     void eventLoop();
     void handlePacketReceiveEvent(const Event& event);
     void handlePacketSendEvent(const Event& event);
@@ -166,8 +177,6 @@ template <typename TraitsT>
 Kernel<TraitsT>::Kernel()
     : m_eventThread(&Kernel::eventLoop, this)
 {
-    messageReceivedCallback = 0;
-
     for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
         m_interfaces[idx] = 0;
 }
@@ -269,18 +278,16 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
     {
         // The packet belongs to the interface and as such it needs to be
         // dispatched.
-        //protocol_t::dispatch(header, packet);
+        packet->moveBegin(sizeof(NetworkProtocolHeader));
         if (header->nextHeader == 1)
         {
             // This is an NCP message.
-            packet->moveBegin(sizeof(NetworkProtocolHeader));
             NcpHandler<Kernel<TraitsT> >::handle(event.networkInterface(),
                                                  header, *packet);
         }
         else
         {
-            if (messageReceivedCallback)
-                messageReceivedCallback(event.buffer());
+            m_protocolChain.dispatch(header->nextHeader, *packet);
         }
     }
     else

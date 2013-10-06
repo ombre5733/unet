@@ -177,17 +177,34 @@ void main(MemoryBus* bus)
 namespace app2
 {
 
-void handleMessage(BufferBase* b)
+class PacketHandler : public uNet::CustomProtocolHandlerBase
 {
-    std::cout << "[app2] received " << b->size() << " bytes" << std::endl;
-}
+public:
+    virtual bool accepts(std::uint8_t headerType) const
+    {
+        return true;
+    }
+
+    virtual void receive(std::uint8_t headerType, BufferBase& packet)
+    {
+        std::cout << "[app2] received <";
+        for (int i = 0; i < packet.size(); ++i)
+        {
+            if (i)
+                std::cout << ' ';
+            std::cout << std::hex << std::setfill('0') << std::setw(2) << int(*(packet.begin() + i)) << std::dec;
+        }
+        std::cout << '>' << std::endl;
+    }
+};
 
 void main(MemoryBus* bus)
 {
     std::cout << "app2 started" << std::endl;
 
     Kernel k;
-    k.messageReceivedCallback = handleMessage;
+    PacketHandler ph;
+    k.protocolHandler<uNet::DefaultProtocolHandler>()->setCustomHandler(&ph);
 
     MemoryBusInterface ifc(&k, "IF2", bus);
     ifc.setNetworkAddress(NetworkAddress(0x0102, 0xFF00));

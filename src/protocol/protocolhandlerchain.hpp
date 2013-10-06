@@ -94,6 +94,7 @@ public:
     }
 
 private:
+    //! The custom protocol handler.
     CustomProtocolHandlerBase* m_customHandler;
 };
 

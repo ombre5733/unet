@@ -36,8 +36,6 @@ public:
     virtual void send(ServiceBase* service, CrossLayerSendData& metaData,
                       BufferBase& message) = 0;
     */
-
-private:
 };
 
 } // namespace uNet

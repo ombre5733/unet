@@ -110,7 +110,7 @@ class SimplePortProtocol
 
 protected:
     //! The value of the "Next header" field in the network protocol.
-    static const int headerType = 2;
+    static const int headerType = 254;
 
     SimplePortProtocol()
         : m_kernel(0)
