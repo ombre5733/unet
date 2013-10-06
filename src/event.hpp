@@ -1,6 +1,8 @@
 #ifndef UNET_EVENT_HPP
 #define UNET_EVENT_HPP
 
+#include "config.hpp"
+
 #include "networkaddress.hpp"
 
 #include <OperatingSystem/OperatingSystem.h>

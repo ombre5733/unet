@@ -131,6 +131,7 @@ private:
     //! The pool from which buffers are allocated.
     buffer_pool_t m_bufferPool;
 
+    //! The type of the event list.
     typedef typename detail::event_list_type_dispatcher<
                          traits_t::max_num_events>::type event_list_t;
     //! The list of events which has to be processed.

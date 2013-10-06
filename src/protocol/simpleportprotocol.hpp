@@ -3,13 +3,32 @@
 
 #include "../config.hpp"
 
-#include "../buffer.hpp"
+#include "../kernelbase.hpp"
 
 #include <cstdint>
 
 namespace uNet
 {
+/*!
+Simple Port Protocol
 
+The Simple Port Protocol (SPP) has been designed in the spirit of UDP. It
+provides ports to which services can be assgined. The SPP handler is merely
+a dispatcher, which maps incoming messages from a port number to a service.
+
+\code
+0                   1                   2                   3
+0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|  Source port  |   Dest port   |              ???              |
++-------+-------+---------------+---------------+---------------+
+|                              ???                              |
++---------------+---------------+---------------+---------------+
+\endcode
+
+*/
+
+//! Maps a port to a service.
 template <std::uint8_t TPort, typename TService>
 struct spp_port_service_map
 {
@@ -77,7 +96,7 @@ struct SimplePortProtocolHeader
     std::uint8_t reserved[6];
 };
 
-//! A simple port-based protocol.
+//! A simple port-based protocol handler.
 //!
 //! SimplePortProtocol implements the handling of SPP messages.
 //!
@@ -92,6 +111,11 @@ class SimplePortProtocol
 protected:
     //! The value of the "Next header" field in the network protocol.
     static const int headerType = 2;
+
+    SimplePortProtocol()
+        : m_kernel(0)
+    {
+    }
 
     //! Returns \p true, if \p headerType equals the SPP header type.
     bool accepts(int headerType) const
@@ -120,6 +144,23 @@ protected:
 
         service_list_t::dispatch(header->destinationPort, message);
     }
+
+    virtual void send(Service* service, CrossLayerSendData& metaData,
+                      BufferBase& message)
+    {
+    }
+
+    void send(std::uint8_t sourcePort,
+              HostAddress destinationAddress, std::uint8_t destinationPort,
+              BufferBase& message)
+    {
+        if (m_kernel)
+            m_kernel->send(destinationAddress, SimplePortProtocol::headerType,
+                           message);
+    }
+
+private:
+    KernelBase* m_kernel;
 };
 
 } // namespace uNet

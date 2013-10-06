@@ -1,6 +1,8 @@
 #ifndef UNET_NETWORKADDRESS_HPP
 #define UNET_NETWORKADDRESS_HPP
 
+#include "config.hpp"
+
 #include <cstdint>
 
 namespace uNet
