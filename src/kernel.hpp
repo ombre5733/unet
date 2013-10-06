@@ -9,6 +9,7 @@
 #include "networkprotocol.hpp"
 #include "networkinterface.hpp"
 #include "routingtable.hpp"
+#include "protocol/protocolhandlerchain.hpp"
 
 #include <OperatingSystem/OperatingSystem.h>
 
@@ -40,6 +41,8 @@ struct default_kernel_traits
     //! remember that sending to a neighbor which is not in the cache will
     //! create latency and traffic on the bus.
     static const unsigned max_num_cached_neighbors = 5;
+
+    //typedef boost::mpl::vector<>
 };
 
 namespace detail

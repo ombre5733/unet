@@ -250,6 +250,7 @@ void test_bufferhandlerchain()
     using namespace uNet;
 
     typedef boost::mpl::vector<SimpleMessageProtocol> protocol_list_t;
+    //typedef boost::mpl::vector<> protocol_list_t;
     typedef make_protocol_handler_chain<protocol_list_t>::type protocols;
 
 

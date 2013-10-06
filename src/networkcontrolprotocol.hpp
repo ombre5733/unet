@@ -383,12 +383,12 @@ public:
     //! Handles an incomming NCP message which has been received via the
     //! interface \p receivingInterface. The \p npHeader points to the
     //! network protocol header in the message. The NCP payload is passed
-    //! in the \p message buffer.
+    //! in the \p packet buffer.
     void handle(NetworkInterface* receivingInterface,
-                const NetworkProtocolHeader* npHeader, BufferBase& message)
+                const NetworkProtocolHeader* npHeader, BufferBase& packet)
     {
-        // Ignore malformed messages.
-        if (message.size() < sizeof(NetworkControlProtocolHeader))
+        // Ignore malformed packets.
+        if (packet.size() < sizeof(NetworkControlProtocolHeader))
         {
             // diagnostics.corruptHeader(packet.data());
             return;
@@ -399,30 +399,30 @@ public:
 
         const NetworkControlProtocolHeader* header
                 = reinterpret_cast<const NetworkControlProtocolHeader*>(
-                      message.begin());
+                      packet.begin());
 
         switch (header->type)
         {
             case NeighborSolicitation::ncpType:
                 derived()->onNcpNeighborSolicitation(receivingInterface,
-                                                     npHeader, message);
+                                                     npHeader, packet);
                 break;
             case NeighborAdvertisment::ncpType:
                 derived()->onNcpNeighborAdvertisment(receivingInterface,
-                                                     npHeader, message);
+                                                     npHeader, packet);
                 break;
             default:
                 // diagnostics.unknownNcpType(packet);
                 break;
         }
-        message.dispose();
+        packet.dispose();
     }
 
 private:
     //! Handle a neighbor solicitation.
     //! This method is called upon receiving a neighbor solicitation via
     //! the network interface \p receivingInterface. The \p npHeader
-    //! points to the network protocol header. The \p message buffer contains
+    //! points to the network protocol header. The \p packet buffer contains
     //! the solicitation's payload.
     //!
     //! The function creates a neighbor advertisment which will be sent back
@@ -431,16 +431,16 @@ private:
     //! is generated for the neighbor.
     void onNcpNeighborSolicitation(NetworkInterface* receivingInterface,
                                    const NetworkProtocolHeader* npHeader,
-                                   BufferBase& message)
+                                   BufferBase& packet)
     {
-        if (message.size() < sizeof(NeighborSolicitation))
+        if (packet.size() < sizeof(NeighborSolicitation))
             return;
 
         std::cout << "NCP - Received neighbor solicitation" << std::endl;
 
         const NeighborSolicitation* solicitation
-            = reinterpret_cast<const NeighborSolicitation*>(message.begin());
-        message.moveBegin(sizeof(NeighborSolicitation));
+            = reinterpret_cast<const NeighborSolicitation*>(packet.begin());
+        packet.moveBegin(sizeof(NeighborSolicitation));
 
         // If the sender has transmitted the solicitation with a valid source
         // address, we can create an entry in the neighbor cache right now.
@@ -455,7 +455,7 @@ private:
             {
                 if (NcpOption::SourceLinkLayerAddress* srcLla
                         = NcpOption::find<NcpOption::SourceLinkLayerAddress>(
-                            message.begin(), message.end()))
+                            packet.begin(), packet.end()))
                 {
                     neighbor->setLinkLayerAddress(srcLla->linkLayerAddress());
                 }
@@ -496,20 +496,20 @@ private:
     //! Handles a neighbor advertisment.
     //! This method is called upon receiving a neighbor advertisment via
     //! the network interface \p receivingInterface. The \p npHeader
-    //! points to the network protocol header. The \p message buffer contains
+    //! points to the network protocol header. The \p packet buffer contains
     //! the advertisment's payload.
     void onNcpNeighborAdvertisment(NetworkInterface* receivingInterface,
                                    const NetworkProtocolHeader* npHeader,
-                                   BufferBase& message)
+                                   BufferBase& packet)
     {
-        if (message.size() < sizeof(NeighborAdvertisment))
+        if (packet.size() < sizeof(NeighborAdvertisment))
             return;
 
         std::cout << "NCP - Received neighbor advertisment" << std::endl;
 
         const NeighborAdvertisment* advertisment
-            = reinterpret_cast<const NeighborAdvertisment*>(message.begin());
-        message.moveBegin(sizeof(NeighborAdvertisment));
+            = reinterpret_cast<const NeighborAdvertisment*>(packet.begin());
+        packet.moveBegin(sizeof(NeighborAdvertisment));
 
         Neighbor* neighbor = derived()->nc.find(advertisment->targetAddress);
         if (!neighbor)
@@ -521,12 +521,12 @@ private:
 
         if (NcpOption::TargetLinkLayerAddress* targetLla
             = NcpOption::find<NcpOption::TargetLinkLayerAddress>(
-                message.begin(), message.end()))
+                packet.begin(), packet.end()))
         {
             neighbor->setLinkLayerAddress(targetLla->linkLayerAddress());
         }
 
-        // Send all messages which have been queued until the reachability
+        // Send all packets which have been queued until the reachability
         // could be confirmed.
         while (!neighbor->sendQueue().empty())
         {

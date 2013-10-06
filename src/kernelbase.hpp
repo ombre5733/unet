@@ -60,20 +60,14 @@ class KernelBase
 {
 public:
     /*
-    virtual void broadcast(std::uint8_t headerType, BufferBase& message) = 0;
+    virtual void broadcast(std::uint8_t headerType, BufferBase& packet) = 0;
 
     virtual void broadcastOnLink(NetworkInterface* ifc, std::uint8_t headerType,
-                                 BufferBase& message);
+                                 BufferBase& packet);
     */
 
-    template <typename TType>
-    TType* allocateMetaData()
-    {
-
-    }
-
     virtual void send(HostAddress destination, std::uint8_t headerType,
-                      BufferBase& message) = 0;
+                      BufferBase& packet) = 0;
 
 protected:
 

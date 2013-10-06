@@ -13,26 +13,33 @@
 namespace uNet
 {
 
+//! A class for chaining protocol handlers.
+//! The ProtocolHandlerChain inherits a protocol handler and a base chain.
 template <typename THandler, typename TBaseChain>
 class ProtocolHandlerChain : public THandler, public TBaseChain
 {
 public:
-    void dispatch(std::uint8_t headerType, BufferBase& message)
+    //! Dispatches an incoming packet.
+    //! Dispatches the incoming \p packet whose "Next header" field in the
+    //! network protocol is passed in \p headerType. If the \p headerType is
+    //! accepted by the \p THandler, the packet is forwarded to it. Otherwise,
+    //! the dispatch() method inherited from the base chain is called.
+    void dispatch(std::uint8_t headerType, BufferBase& packet)
     {
         if (THandler::accepts(headerType))
-            THandler::receive(headerType, message);
+            THandler::receive(headerType, packet);
         else
-            TBaseChain::dispatch(headerType, message);
+            TBaseChain::dispatch(headerType, packet);
     }
 
-    //! Returns a pointer to a handler in this handler chain.
+    //! Returns a pointer to a handler in this chain.
     template <typename CastT>
     CastT* get()
     {
         return static_cast<CastT*>(this);
     }
 
-    //! Returns a pointer to a handler in this handler chain.
+    //! Returns a pointer to a handler in this chain.
     template <typename CastT>
     const CastT* get() const
     {
@@ -49,17 +56,38 @@ public:
     {
     }
 
-    void dispatch(std::uint8_t headerType, BufferBase& message)
+    //! Dispatches an incoming packet.
+    //! Dispatches the incoming \p packet whose "Next header" field of the
+    //! network protocol is passed in \p headerType. If a custom protocol
+    //! handler has been set and it accepts the \p headerType, the packet
+    //! is passed on to it. Otherwise, the packet is disposed.
+    void dispatch(std::uint8_t headerType, BufferBase& packet)
     {
         if (m_customHandler && m_customHandler->accepts(headerType))
-            m_customHandler->receive(headerType, message);
+            m_customHandler->receive(headerType, packet);
         else
         {
-            //  No one wants to deal with the buffer so it is discarded.
-            message.dispose();
+            //  No one wants to deal with the packet so it is discarded.
+            packet.dispose();
         }
     }
 
+    //! Returns a pointer to a handler in this chain.
+    template <typename CastT>
+    CastT* get()
+    {
+        return static_cast<CastT*>(this);
+    }
+
+    //! Returns a pointer to a handler in this chain.
+    template <typename CastT>
+    const CastT* get() const
+    {
+        return static_cast<const CastT*>(this);
+    }
+
+    //! Sets a custom protocol handler.
+    //! Assigns a custom protocol handler \p handler.
     void setCustomHandler(CustomProtocolHandlerBase* handler)
     {
         m_customHandler = handler;
