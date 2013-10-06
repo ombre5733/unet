@@ -308,7 +308,7 @@ void test_bufferhandlerchain()
         hdr.sourcePort = 21;
         hdr.destinationPort = 42;
         b->push_front(hdr);
-        pc.dispatch(254, *b);
+        pc.dispatch(2, *b);
     }
 
     server.join();

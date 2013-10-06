@@ -8,8 +8,8 @@ namespace uNet
 
 Socket::~Socket()
 {
-    if (m_addedToProtocol)
-        m_protocol.removeSocket(*this);
+    if (m_addedToProtocolHandler)
+        m_protocolHandler.removeSocket(*this);
 }
 
 void Socket::accept()
@@ -21,17 +21,17 @@ void Socket::accept()
 void Socket::listen()
 {
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
-    m_protocol.addSocket(*this);
-    m_addedToProtocol = true;
+    m_protocolHandler.addSocket(*this);
+    m_addedToProtocolHandler = true;
 }
 
 BufferBase* Socket::receive()
 {
     m_packetSemaphore.wait();
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
-    BufferBase* packet = m_lastPacket;
-    m_lastPacket = 0;
-    return packet;
+    BufferBase& packet = m_packetQueue.front();
+    m_packetQueue.pop_front();
+    return &packet;
 }
 
 void Socket::receiveFromProtocol(BufferBase& packet)
@@ -41,7 +41,7 @@ void Socket::receiveFromProtocol(BufferBase& packet)
         packet.dispose();
     else
     {
-        m_lastPacket = &packet;
+        m_packetQueue.push_back(packet);
         m_packetSemaphore.post();
     }
 }
