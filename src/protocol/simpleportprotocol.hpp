@@ -145,6 +145,7 @@ protected:
         service_list_t::dispatch(header->destinationPort, message);
     }
 
+    /*
     virtual void send(Service* service, CrossLayerSendData& metaData,
                       BufferBase& message)
     {
@@ -158,6 +159,7 @@ protected:
             m_kernel->send(destinationAddress, SimplePortProtocol::headerType,
                            message);
     }
+*/
 
 private:
     KernelBase* m_kernel;

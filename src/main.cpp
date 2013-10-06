@@ -2,6 +2,7 @@
 #include "networkinterface.hpp"
 
 #include <atomic>
+#include <iomanip>
 #include <thread>
 #include <vector>
 
@@ -199,43 +200,63 @@ void main(MemoryBus* bus)
 
 } // namespace app2
 
-#include "bufferhandlerchain.hpp"
+#include "protocol/protocolhandlerchain.hpp"
+#include "protocol/simpleportprotocol.hpp"
+#include "protocol/simplemessageprotocol.hpp"
 
-class MyBufferHandler : public uNet::BufferHandlerBase
+class MyBufferHandler : public uNet::CustomProtocolHandlerBase
 {
 public:
-    virtual bool accepts(int headerType) const
+    virtual bool accepts(std::uint8_t headerType) const
     {
         return true;
     }
 
-    virtual void handle(int headerType, uNet::BufferBase &message)
+    virtual void receive(std::uint8_t headerType, uNet::BufferBase &message)
     {
         std::cout << ">>Got a buffer of size " << message.size()
-                  << " with unknown header type " << headerType
+                  << " with unknown header type " << int(headerType)
                   << "<<" << std::endl;
     }
 };
 
+void test_server(uNet::SimpleMessageProtocol* smp)
+{
+    using namespace uNet;
 
-#include "protocol/simpleportprotocol.hpp"
+    Socket skt(*smp);
+
+    skt.listen();
+
+    while (1)
+    {
+        skt.accept();
+
+        BufferBase* b = skt.receive();
+
+        std::cout << "<<Server>> received: ";
+        for (int i = 0; i < b->size(); ++i)
+        {
+            std::cout << std::hex << std::setfill('0') << std::setw(2) << int(*(b->begin() + i)) << std::dec << ' ';
+        }
+        std::cout << std::endl;
+
+        break;
+    }
+}
+
 void test_bufferhandlerchain()
 {
     using namespace uNet;
 
-    typedef boost::mpl::vector<
-                spp_port_service_map<100, HttpServer>
-            >::type spp_service_list_t;
-    typedef SimplePortProtocol<spp_service_list_t> spp;
-
-    typedef boost::mpl::vector<TcpHandlerStub, UdpHandlerStub, spp> protocol_list_t;
-    typedef make_buffer_handler_chain<protocol_list_t>::type protocols;
+    typedef boost::mpl::vector<SimpleMessageProtocol> protocol_list_t;
+    typedef make_protocol_handler_chain<protocol_list_t>::type protocols;
 
 
     protocols pc;
     MyBufferHandler h;
-    pc.get<DefaultBufferHandler>()->setCustomHandler(&h);
-    pc.get<uNet::TcpHandlerStub>()->setOption(2);
+    pc.get<DefaultProtocolHandler>()->setCustomHandler(&h);
+    //pc.get<uNet::TcpHandlerStub>()->setOption(2);
 
     Buffer<256, 4>* b = new Buffer<256, 4>();
     b->push_back(std::uint16_t(0xABCD));
@@ -244,13 +265,35 @@ void test_bufferhandlerchain()
     pc.dispatch(11, *b);
     b->push_back(std::uint16_t(0x2106));
     pc.dispatch(12, *b);
+#if 0
+    {
+        SimplePortProtocolHeader hdr;
+        hdr.sourcePort = 99;
+        hdr.destinationPort = 100;
+        b->push_front(hdr);
+        pc.dispatch(2, *b);
+    }
 
-    SimplePortProtocolHeader hdr;
-    hdr.sourcePort = 99;
-    hdr.destinationPort = 100;
-    b->push_front(hdr);
-    pc.dispatch(2, *b);
+    {
+        SimpleMessageProtocolHeader hdr;
+        hdr.sourcePort = 99;
+        hdr.destinationPort = 100;
+        b->push_front(hdr);
+        pc.dispatch(254, *b);
+    }
+#endif
+    std::thread server(test_server, pc.get<SimpleMessageProtocol>());
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
+    {
+        SimpleMessageProtocolHeader hdr;
+        hdr.sourcePort = 21;
+        hdr.destinationPort = 42;
+        b->push_front(hdr);
+        pc.dispatch(254, *b);
+    }
+
+    server.join();
     std::cout << std::endl << std::endl;
 }
 

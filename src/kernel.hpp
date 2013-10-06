@@ -82,7 +82,7 @@ struct event_list_type_dispatcher
 
 //! The network kernel.
 //! The network kernel is the central unit in the network implementation.
-//! It keeps track of the interfaces and is in charge for routing messages.
+//! It keeps track of the interfaces and is in charge for routing packets.
 template <typename TraitsT = default_kernel_traits>
 class Kernel : public NetworkInterfaceListener,
                public NcpHandler<Kernel<TraitsT> >
@@ -100,13 +100,13 @@ public:
     //! Registers the interface \p ifc in the kernel.
     void addInterface(NetworkInterface* ifc);
 
-    //! Sends a message.
-    //! Sends the given \p message to the neighbor specified by the
+    //! Sends a packet.
+    //! Sends the given \p packet to the neighbor specified by the
     //! \p destination address. Before sending, a network header is prepended
-    //! to the message. The type of the first header in the message is encoded
+    //! to the packet. The type of the first header in the packet is encoded
     //! in the \p headerType. This type will be incorporated in the network
     //! header.
-    void send(HostAddress destination, int headerType, BufferBase* message);
+    void send(HostAddress destination, int headerType, BufferBase* packet);
 
     //! \reimp
     virtual BufferBase* allocateBuffer()
@@ -146,8 +146,8 @@ private:
     RoutingTable m_routingTable;
 
     void eventLoop();
-    void handleMessageReceiveEvent(const Event& event);
-    void handleMessageSendEvent(const Event& event);
+    void handlePacketReceiveEvent(const Event& event);
+    void handlePacketSendEvent(const Event& event);
 
     void handleSendLinkLocalBroadcastEvent(const Event& event);
     void handleSendRawMessageEvent(const Event& event);
@@ -191,18 +191,18 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 
 template <typename TraitsT>
 void Kernel<TraitsT>::send(HostAddress destination, int headerType,
-                           BufferBase* message)
+                           BufferBase* packet)
 {
-    // Be restrictive on what we send.
+    // Be strict on what we send.
     if (destination.unspecified())
         ::uNet::throw_exception(-1);//! \todo Use a system_error
 
     NetworkProtocolHeader header;
     header.destinationAddress = destination;
     header.nextHeader = headerType;
-    header.length = message->size() + sizeof(NetworkProtocolHeader);
-    message->push_front(header);
-    m_eventList.enqueue(Event::createMessageSendEvent(message));
+    header.length = packet->size() + sizeof(NetworkProtocolHeader);
+    packet->push_front(header);
+    m_eventList.enqueue(Event::createMessageSendEvent(packet));
 }
 
 // ----=====================================================================----
@@ -220,10 +220,10 @@ void Kernel<TraitsT>::eventLoop()
         switch (event.type())
         {
             case Event::MessageReceive:
-                handleMessageReceiveEvent(event);
+                handlePacketReceiveEvent(event);
                 break;
             case Event::MessageSend:
-                handleMessageSendEvent(event);
+                handlePacketSendEvent(event);
                 break;
             case Event::SendRawMessage:
                 handleSendRawMessageEvent(event);
@@ -242,21 +242,21 @@ void Kernel<TraitsT>::eventLoop()
 }
 
 template <typename TraitsT>
-void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
+void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
 {
     UNET_ASSERT(event.networkInterface() != 0);
 
-    BufferBase* message = event.buffer();
+    BufferBase* packet = event.buffer();
     const NetworkProtocolHeader* header
-            = reinterpret_cast<const NetworkProtocolHeader*>(message->begin());
+            = reinterpret_cast<const NetworkProtocolHeader*>(packet->begin());
 
-    // Throw away malformed messages.
-    if (   message->size() < sizeof(NetworkProtocolHeader)
-        || message->size() != header->length
+    // Throw away malformed packets.
+    if (   packet->size() < sizeof(NetworkProtocolHeader)
+        || packet->size() != header->length
         || HostAddress(header->destinationAddress).unspecified()
         || HostAddress(header->sourceAddress).multicast())
     {
-        message->dispose();
+        packet->dispose();
         return;
     }
 
@@ -266,13 +266,13 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
     {
         // The packet belongs to the interface and as such it needs to be
         // dispatched.
-        //protocol_t::dispatch(header, message);
+        //protocol_t::dispatch(header, packet);
         if (header->nextHeader == 1)
         {
             // This is an NCP message.
-            message->moveBegin(sizeof(NetworkProtocolHeader));
+            packet->moveBegin(sizeof(NetworkProtocolHeader));
             NcpHandler<Kernel<TraitsT> >::handle(event.networkInterface(),
-                                                 header, *message);
+                                                 header, *packet);
         }
         else
         {
@@ -288,7 +288,7 @@ void Kernel<TraitsT>::handleMessageReceiveEvent(const Event& event)
         // because we cannot send a reply.
         if (HostAddress(header->sourceAddress).unspecified())
         {
-            message->dispose();
+            packet->dispose();
             return;
         }
     }
@@ -298,10 +298,10 @@ template <typename TraitsT>
 void Kernel<TraitsT>::handleSendLinkLocalBroadcastEvent(const Event& event)
 {
     std::cout << "handleSendLinkLocalBroadcastEvent" << std::endl;
-    BufferBase* message = event.buffer();
-    UNET_ASSERT(message->size() >= sizeof(NetworkProtocolHeader));
+    BufferBase* packet = event.buffer();
+    UNET_ASSERT(packet->size() >= sizeof(NetworkProtocolHeader));
     UNET_ASSERT(event.networkInterface());
-    event.networkInterface()->broadcast(*message);
+    event.networkInterface()->broadcast(*packet);
 }
 
 template <typename TraitsT>
@@ -357,10 +357,10 @@ void Kernel<TraitsT>::handleSendRawMessageEvent(const Event& event)
 }
 
 template <typename TraitsT>
-void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
+void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
 {
-    BufferBase* message = event.buffer();
-    NetworkProtocolHeader* header = reinterpret_cast<NetworkProtocolHeader*>(message->begin());
+    BufferBase* packet = event.buffer();
+    NetworkProtocolHeader* header = reinterpret_cast<NetworkProtocolHeader*>(packet->begin());
 #if 0
     // Perform a look-up in the destination cache.
     Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);
@@ -417,7 +417,7 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
 
         // Complete the header and put the message in the neighbor's queue.
         header->sourceAddress = ifc->networkAddress().hostAddress();
-        cachedNeighbor->sendQueue().push_back(*message);
+        cachedNeighbor->sendQueue().push_back(*packet);
 
         // Send out a neighbor solicitation.
         sendNeighborSolicitation(ifc, routedDestination);
@@ -426,7 +426,7 @@ void Kernel<TraitsT>::handleMessageSendEvent(const Event& event)
 
     // Cannot find a route for this packet.
     // diagnostics.unknownRoute(destAddr);
-    message->dispose();
+    packet->dispose();
 }
 
 template <typename TraitsT>

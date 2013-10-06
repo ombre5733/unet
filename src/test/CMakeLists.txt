@@ -22,6 +22,7 @@ add_executable(unet
                ../networkaddress.cpp
                ../networkinterface.cpp
                ../routingtable.cpp
+               ../protocol/simplemessageprotocol.cpp
                ../main.cpp)
 target_link_libraries(unet ${Boost_LIBRARIES})
 
