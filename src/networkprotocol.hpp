@@ -1,6 +1,8 @@
 #ifndef UNET_NETWORKPROTOCOL_HPP
 #define UNET_NETWORKPROTOCOL_HPP
 
+#include "networkaddress.hpp"
+
 #include <cstdint>
 
 namespace uNet
@@ -77,8 +79,8 @@ struct NetworkProtocolHeader
     std::uint8_t hopCount : 4;
     std::uint8_t nextHeader;
     std::uint16_t length;
-    std::uint16_t sourceAddress;
-    std::uint16_t destinationAddress;
+    HostAddress sourceAddress;
+    HostAddress destinationAddress;
 
     //! The maximum possible value for the hop count.
     static const std::uint8_t maxHopCount = 15;

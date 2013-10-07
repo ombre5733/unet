@@ -40,6 +40,26 @@ TEST(HostAddress, SubnetCheck)
     ASSERT_FALSE(addr.isInSubnet(0x13FF, 0xFF00));
 }
 
+TEST(HostAddress, MulticastAddresses)
+{
+    uNet::HostAddress addr;
+    addr = uNet::HostAddress::multicastAddress();
+    ASSERT_EQ(0x8000, addr);
+    ASSERT_TRUE(addr.multicast());
+
+    addr = uNet::HostAddress::multicastAddress(uNet::all_device_multicast);
+    ASSERT_EQ(0x8000, addr);
+    ASSERT_TRUE(addr.multicast());
+
+    addr = uNet::HostAddress::multicastAddress(uNet::link_local_all_device_multicast);
+    ASSERT_EQ(0x8001, addr);
+    ASSERT_TRUE(addr.multicast());
+}
+
+// ----=====================================================================----
+//     NetworkAddress
+// ----=====================================================================----
+
 TEST(NetworkAddress, Initialization)
 {
     uNet::NetworkAddress addr;

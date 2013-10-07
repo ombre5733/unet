@@ -385,7 +385,7 @@ public:
     //! network protocol header in the message. The NCP payload is passed
     //! in the \p packet buffer.
     void handle(NetworkInterface* receivingInterface,
-                const NetworkProtocolHeader* npHeader, BufferBase& packet)
+                const NetworkProtocolHeader& npHeader, BufferBase& packet)
     {
         // Ignore malformed packets.
         if (packet.size() < sizeof(NetworkControlProtocolHeader))
@@ -430,7 +430,7 @@ private:
     //! address and there is place in the neighbor cache, a cache entry
     //! is generated for the neighbor.
     void onNcpNeighborSolicitation(NetworkInterface* receivingInterface,
-                                   const NetworkProtocolHeader* npHeader,
+                                   const NetworkProtocolHeader& npHeader,
                                    BufferBase& packet)
     {
         if (packet.size() < sizeof(NeighborSolicitation))
@@ -445,11 +445,11 @@ private:
         // If the sender has transmitted the solicitation with a valid source
         // address, we can create an entry in the neighbor cache right now.
         // This saves another round-trip when we want to send a reply.
-        if (!HostAddress(npHeader->sourceAddress).unspecified())
+        if (!npHeader.sourceAddress.unspecified())
         {
-            Neighbor* neighbor = derived()->nc.find(npHeader->sourceAddress);
+            Neighbor* neighbor = derived()->nc.find(npHeader.sourceAddress);
             if (!neighbor)
-                neighbor = derived()->nc.createEntry(npHeader->sourceAddress,
+                neighbor = derived()->nc.createEntry(npHeader.sourceAddress,
                                                      receivingInterface);
             if (neighbor)
             {
@@ -473,8 +473,8 @@ private:
         }
 
         NetworkProtocolHeader header;
-        header.sourceAddress = HostAddress();//! \todo: npHeader->destinationAddress;
-        header.destinationAddress = npHeader->sourceAddress;
+        header.sourceAddress = HostAddress();//! \todo: npHeader.destinationAddress;
+        header.destinationAddress = npHeader.sourceAddress;
         header.nextHeader = 1;
         header.length = buffer->size() + sizeof(NetworkProtocolHeader);
         buffer->push_front(header);
@@ -482,7 +482,7 @@ private:
         // If the solicitation has been sent from an unspecified host, the
         // advertisment is sent as a broadcast. Otherwise we can use
         // a unicast.
-        if (HostAddress(npHeader->sourceAddress).unspecified())
+        if (npHeader.sourceAddress.unspecified())
         {
             derived()->notify(Event::createSendLinkLocalBroadcast(
                                   receivingInterface, buffer));
@@ -499,7 +499,7 @@ private:
     //! points to the network protocol header. The \p packet buffer contains
     //! the advertisment's payload.
     void onNcpNeighborAdvertisment(NetworkInterface* receivingInterface,
-                                   const NetworkProtocolHeader* npHeader,
+                                   const NetworkProtocolHeader& npHeader,
                                    BufferBase& packet)
     {
         if (packet.size() < sizeof(NeighborAdvertisment))

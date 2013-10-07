@@ -4,6 +4,7 @@
 #include "../config.hpp"
 
 #include "../kernelbase.hpp"
+#include "../networkprotocol.hpp"
 
 #include "OperatingSystem/OperatingSystem.h"
 
@@ -68,11 +69,15 @@ public:
 };
 
 template <unsigned TConnectionCount>
-class Socket : public SocketBase
+class Socket : public SocketBase : boost::noncopyable
 {
 
 };
 
+//! A socket communicator.
+//! A SocketCommunicator is an object for communicating over a socket. It
+//! is created whenever a socket establishes a connection. The classic
+//! pedant is the file descriptor returned by accept() or connect().
 class SocketCommunicator : boost::noncopyable
 {
 public:
@@ -137,17 +142,32 @@ public:
 
     void accept();
 
+    //! Binds the socket to a local port.
+    //! Binds the socket to the local \p port. A bound socket can then be
+    //! used for receiving packets by calling listen() or it can connect
+    //! to a remote port via connect().
     void bind(std::uint8_t port);
 
+    //! Listens for packets.
+    //! Turns this socket into an incoming one. It will listen on the port
+    //! which has been set with bind() for packets. The incoming packets are
+    //! queued until they are fetched via a call to receive().
     void listen();
 
+    //! Connects to a remote port.
+    //! Connects this port to a remote port with number \p destinationPort on
+    //! the host with the address \p destinationAddress.
     void connect(HostAddress destinationAddress, std::uint8_t destinationPort);
 
     BufferBase* receive();
 
-    void try_receive();
+    BufferBase* try_receive();
 
-    void try_receive_for();
+    BufferBase* try_receive_for();
+
+    BufferBase* allocate();
+
+    void send(BufferBase* packet);
 
 private:
     OperatingSystem::mutex m_mutex;
@@ -183,20 +203,18 @@ public:
     {
     }
 
-    //! Returns \p true, if \p headerType equals the SMP header type.
-    bool accepts(std::uint8_t headerType) const
-    {
-        return headerType == SimpleMessageProtocol::headerType;
-    }
-
+    //! Filters incoming packets.
+    //! Filters incoming packets by their network protocol header. If the
+    //! network protocol's "Next header" field matches the Simple Message
+    //! Protocol type, the method returns \p true.
     bool filter(const NetworkProtocolHeader& header) const
     {
-        return header->nextHeader == SimpleMessageProtocol::headerType;
+        return header.nextHeader == SimpleMessageProtocol::headerType;
     }
 
     //! Handles an incoming SMP packet.
     //! Handles the incoming SMP \p packet.
-    void receive(std::uint8_t /*headerType*/, BufferBase& packet);
+    void receive(const NetworkProtocolHeader& header, BufferBase& packet);
 
     /*
     virtual void send(Service* service, CrossLayerSendData& metaData,
@@ -235,7 +253,7 @@ private:
                 Socket::protocol_list_hook_t,
                 &Socket::m_protocolListHook>,
             boost::intrusive::cache_last<false> > socket_list_t;
-
+    //! A list of sockets which are attached to this protocol handler.
     socket_list_t m_socketList;
 
     friend class Socket;

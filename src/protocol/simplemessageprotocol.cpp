@@ -53,7 +53,12 @@ BufferBase* Socket::receive()
     return &packet;
 }
 
-bool Socket::acceptPacket(std::uint8_t destinationPort, BufferBase& packet)
+void Socket::send(BufferBase* packet)
+{
+
+}
+
+bool Socket::filterPacket(std::uint8_t destinationPort, BufferBase& packet)
 {
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
     if (m_state != Receiving || destinationPort != m_localPort)
@@ -61,13 +66,15 @@ bool Socket::acceptPacket(std::uint8_t destinationPort, BufferBase& packet)
 
     m_packetQueue.push_back(packet);
     m_packetSemaphore.post();
+    return true;
 }
 
 // ----=====================================================================----
 //     SimpleMessageProtocol
 // ----=====================================================================----
 
-void SimpleMessageProtocol::receive(std::uint8_t, BufferBase& packet)
+void SimpleMessageProtocol::receive(const NetworkProtocolHeader& npHeader,
+                                    BufferBase& packet)
 {
     if (packet.size() < sizeof(SimpleMessageProtocolHeader))
     {
@@ -95,7 +102,7 @@ void SimpleMessageProtocol::receive(std::uint8_t, BufferBase& packet)
                              end_iter = m_socketList.end();
          iter != end_iter; ++iter)
     {
-        if (iter->acceptPacket(header->destinationPort, packet))
+        if (iter->filterPacket(header->destinationPort, packet))
             return;
     }
     packet.dispose();
@@ -112,5 +119,7 @@ void SimpleMessageProtocol::removeSocket(Socket& socket)
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_socketMutex);
     m_socketList.erase(m_socketList.s_iterator_to(socket));
 }
+
+//void SimpleMessageProtocol::send()
 
 } // namespace uNet

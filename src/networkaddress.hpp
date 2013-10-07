@@ -3,12 +3,20 @@
 
 #include "config.hpp"
 
+#include <boost/config.hpp>
+
 #include <cstdint>
 
 namespace uNet
 {
 
 class NetworkAddress;
+
+struct all_device_multicast_t {};
+struct link_local_all_device_multicast_t {};
+
+BOOST_CONSTEXPR_OR_CONST all_device_multicast_t all_device_multicast = all_device_multicast_t();
+BOOST_CONSTEXPR_OR_CONST link_local_all_device_multicast_t link_local_all_device_multicast = link_local_all_device_multicast_t();
 
 //! Simply a host address.
 //!
@@ -48,7 +56,7 @@ public:
     //! Returns \p true, if this host address is a multicast address.
     bool multicast() const
     {
-        return (m_address & 0x1000) != 0;
+        return (m_address & 0x8000) != 0;
     }
 
     //! Checks if this is an unspecified address.
@@ -63,19 +71,25 @@ public:
     //! Returns \p true, if this host address belongs to the sub-net which
     //! is defined by \p subnetAddress (one address from the sub-net) and the
     //! associated \p netmask.
-    bool isInSubnet(const HostAddress& subnetAddress,
-                    std::uint16_t netmask) const;
+    bool isInSubnet(HostAddress subnetAddress, std::uint16_t netmask) const;
 
-    bool isInSubnet(const NetworkAddress& subnetAddress) const;
+    bool isInSubnet(NetworkAddress subnetAddress) const;
 
     operator std::uint16_t() const
     {
         return m_address;
     }
 
-    static HostAddress multicastAddress()
+    //! Returns the all-device multicast address.
+    static HostAddress multicastAddress(all_device_multicast_t = all_device_multicast_t())
     {
-        return 0x1000;
+        return 0x8000;
+    }
+
+    //! Returns the link-local all-device multicast address.
+    static HostAddress multicastAddress(link_local_all_device_multicast_t)
+    {
+        return 0x8001;
     }
 
 private:

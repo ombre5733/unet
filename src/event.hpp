@@ -165,11 +165,6 @@ public:
         m_numEvents.post();
     }
 
-    void release(Event* event)
-    {
-        m_eventPool.destroy(event);
-    }
-
     Event retrieve()
     {
         m_numEvents.wait();
@@ -177,7 +172,10 @@ public:
         Event* first = m_eventList;
         m_eventList = first->m_next;
         first->m_next = 0;
-        return *first;
+
+        Event temp = *first;
+        m_eventPool.destroy(first);
+        return temp;
     }
 
 private:

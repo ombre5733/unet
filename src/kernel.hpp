@@ -259,27 +259,32 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
     UNET_ASSERT(event.networkInterface() != 0);
 
     BufferBase* packet = event.buffer();
-    const NetworkProtocolHeader* header
-            = reinterpret_cast<const NetworkProtocolHeader*>(packet->begin());
+
+    if (packet->size() < sizeof(NetworkProtocolHeader))
+    {
+        packet->dispose();
+        return;
+    }
+    const NetworkProtocolHeader header
+            = packet->copy_front<NetworkProtocolHeader>();
 
     // Throw away malformed packets.
-    if (   packet->size() < sizeof(NetworkProtocolHeader)
-        || packet->size() != header->length
-        || HostAddress(header->destinationAddress).unspecified()
-        || HostAddress(header->sourceAddress).multicast())
+    if (   header.version != 1
+        || packet->size() != header.length
+        || header.destinationAddress.unspecified()
+        || header.sourceAddress.multicast())
     {
         packet->dispose();
         return;
     }
 
-    HostAddress destAddr(header->destinationAddress);
-    if (destAddr == event.networkInterface()->networkAddress().hostAddress()
-        || destAddr.multicast())
+    if (header.destinationAddress == event.networkInterface()->networkAddress().hostAddress()
+        || header.destinationAddress.multicast())
     {
+        packet->moveBegin(sizeof(NetworkProtocolHeader));
         // The packet belongs to the interface and as such it needs to be
         // dispatched.
-        packet->moveBegin(sizeof(NetworkProtocolHeader));
-        if (header->nextHeader == 1)
+        if (header.nextHeader == 1)
         {
             // This is an NCP message.
             NcpHandler<Kernel<TraitsT> >::handle(event.networkInterface(),
@@ -287,7 +292,7 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
         }
         else
         {
-            m_protocolChain.dispatch(header->nextHeader, *packet);
+            m_protocolChain.dispatch(header, *packet);
         }
     }
     else
@@ -296,7 +301,7 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
 
         // Do not route packets which have an unspecified source address
         // because we cannot send a reply.
-        if (HostAddress(header->sourceAddress).unspecified())
+        if (header.sourceAddress.unspecified())
         {
             packet->dispose();
             return;
@@ -335,8 +340,7 @@ void Kernel<TraitsT>::handleSendRawMessageEvent(const Event& event)
         NetworkInterface* ifc = m_interfaces[idx];
         if (!ifc)
             break;
-        if (!HostAddress(header->destinationAddress).isInSubnet(
-                ifc->networkAddress()))
+        if (!header->destinationAddress.isInSubnet(ifc->networkAddress()))
             continue;
 
         //Continue here....
@@ -454,7 +458,8 @@ void Kernel<TraitsT>::sendNeighborSolicitation(NetworkInterface* ifc,
 
     NetworkProtocolHeader header;
     header.sourceAddress = ifc->networkAddress().hostAddress();
-    header.destinationAddress = HostAddress::multicastAddress();
+    header.destinationAddress = HostAddress::multicastAddress(
+                                    link_local_all_device_multicast);
     header.nextHeader = 1;
     header.length = buffer->size() + sizeof(NetworkProtocolHeader);
     buffer->push_front(header);

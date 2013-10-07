@@ -193,6 +193,7 @@ public:
     void moveBegin(int offset)
     {
         m_begin += offset;
+        UNET_ASSERT(m_begin >= storageBegin() && m_begin <= m_end);
     }
 
     //! Returns a pointer just past the end of the data.
@@ -207,9 +208,21 @@ public:
         return m_end;
     }
 
-    //! Pops a type from the beginning of the buffer.
+    //! Copies an element from the beginning of the buffer.
+    //! Copies an element of type \p TType from the beginning of the buffer
+    //! without changing the iterators.
+    template <typename TType>
+    TType copy_front() const
+    {
+        UNET_ASSERT(m_begin + sizeof(TType) <= m_end);
+        TType temp;
+        std::memcpy(&temp, m_begin, sizeof(TType));
+        return temp;
+    }
+
+    //! Pops an element from the beginning of the buffer.
     //! Pops an element of type \p TType from the beginning of the buffer and
-    //! returns it.
+    //! advances the start iterator.
     template <typename TType>
     TType pop_front()
     {
@@ -220,8 +233,8 @@ public:
         return temp;
     }
 
-    //! Adds data at the end of the buffer.
-    //! Copies the given \p data at the end of the buffer.
+    //! Adds an element at the end of the buffer.
+    //! Copies the given \p data element at the end of the buffer.
     template <typename TType>
     void push_back(const TType& data)
     {

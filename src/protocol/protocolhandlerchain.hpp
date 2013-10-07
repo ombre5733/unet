@@ -20,16 +20,17 @@ class ProtocolHandlerChain : public THandler, public TBaseChain
 {
 public:
     //! Dispatches an incoming packet.
-    //! Dispatches the incoming \p packet whose "Next header" field in the
-    //! network protocol is passed in \p headerType. If the \p headerType is
-    //! accepted by the \p THandler, the packet is forwarded to it. Otherwise,
-    //! the dispatch() method inherited from the base chain is called.
-    void dispatch(std::uint8_t headerType, BufferBase& packet)
+    //! Dispatches the incoming \p packet with an associated network protocol
+    //! \p header. If the protocol handler \p THandler accepts the packet
+    //! (\p filter() returns \p true), the packet is passed on to it.
+    //! Otherwise, the dispatch() method inherited from the base chain is
+    //! called.
+    void dispatch(const NetworkProtocolHeader& header, BufferBase& packet)
     {
-        if (THandler::accepts(headerType))
-            THandler::receive(headerType, packet);
+        if (THandler::filter(header))
+            THandler::receive(header, packet);
         else
-            TBaseChain::dispatch(headerType, packet);
+            TBaseChain::dispatch(header, packet);
     }
 
     //! Returns a pointer to a handler in this chain.
@@ -57,14 +58,14 @@ public:
     }
 
     //! Dispatches an incoming packet.
-    //! Dispatches the incoming \p packet whose "Next header" field of the
-    //! network protocol is passed in \p headerType. If a custom protocol
-    //! handler has been set and it accepts the \p headerType, the packet
-    //! is passed on to it. Otherwise, the packet is disposed.
-    void dispatch(std::uint8_t headerType, BufferBase& packet)
+    //! Dispatches the incoming \p packet with its associated network protocol
+    //! \p header.
+    //! If a custom protocol handler has been set and it accepts the \p header,
+    //! the packet is passed on to it. Otherwise, the packet is disposed.
+    void dispatch(const NetworkProtocolHeader& header, BufferBase& packet)
     {
-        if (m_customHandler && m_customHandler->accepts(headerType))
-            m_customHandler->receive(headerType, packet);
+        if (m_customHandler && m_customHandler->filter(header))
+            m_customHandler->receive(header, packet);
         else
         {
             //  No one wants to deal with the packet so it is discarded.

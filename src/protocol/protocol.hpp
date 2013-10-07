@@ -4,6 +4,7 @@
 #include "../config.hpp"
 
 #include "../buffer.hpp"
+#include "../networkprotocol.hpp"
 
 #include <cstdint>
 
@@ -17,20 +18,20 @@ public:
     //! Destroys the protocol handler.
     virtual ~CustomProtocolHandlerBase() {}
 
-    //! Checks if a packet type is accepted by the protocol.
-    //! Derived classes have to implement this method. It is called for
-    //! every incoming packet. THe "Next header" field of the network protocol
-    //! is passed in \p headerType. If the return value is \p true, the
-    //! packet is passed to receive().
-    virtual bool accepts(std::uint8_t headerType) const = 0;
+    //! Checks if an incoming packet is accepted by the protocol.
+    //! Derived classes have to implement this method to filter incoming
+    //! packets by their network protocol \p header. If \p true is returned,
+    //! the packet is passed to receive().
+    virtual bool filter(const NetworkProtocolHeader& header) const = 0;
 
-    //! Deals with a received packet.
-    //! Handles the incoming \p packet whose network protocol field
-    //! "Next header" is passed in \p headerType.
+    //! Deals with an incoming packet.
+    //! Handles the incoming \p packet with the given network protocol
+    //! \p header. This method is only called, if filter() returned true.
     //!
     //! \note If the \p packet is not passed on to another handler, it has
     //! to be disposed.
-    virtual void receive(std::uint8_t headerType, BufferBase& packet) = 0;
+    virtual void receive(const NetworkProtocolHeader& header,
+                         BufferBase& packet) = 0;
 
     /*
     virtual void send(ServiceBase* service, CrossLayerSendData& metaData,
