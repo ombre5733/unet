@@ -63,6 +63,7 @@ public:
         Public
     };
 
+    //! Creates a network interface.
     explicit NetworkInterface(NetworkInterfaceListener* listener);
 
     //! Sends a broadcast.
@@ -86,6 +87,8 @@ public:
         return m_linkLayerAddress;
     }
 
+    //! Returns the listener.
+    //! Returns the listener which has been attached to this network interface.
     NetworkInterfaceListener* listener() const
     {
         return m_listener;
@@ -119,6 +122,10 @@ public:
     //! not have link-layer addresses (because it is a point-to-point
     //! connection such as e.g. UART), the \p address should be ignored.
     virtual void send(const LinkLayerAddress& address, BufferBase& data) = 0;
+
+    //! Sets a listener.
+    //! Attaches the given \p listener to this network interface.
+    void setListener(NetworkInterfaceListener* listener);
 
 private:
     //! The link-layer address of this interface.

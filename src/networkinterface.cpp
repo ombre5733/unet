@@ -3,6 +3,10 @@
 namespace uNet
 {
 
+// ----=====================================================================----
+//     NetworkInterface
+// ----=====================================================================----
+
 NetworkInterface::NetworkInterface(NetworkInterfaceListener* listener)
     : m_listener(listener),
       m_name(0)
@@ -33,6 +37,11 @@ void NetworkInterface::setName(const char *name)
 void NetworkInterface::setNetworkAddress(const NetworkAddress &addr)
 {
     m_networkAddress = addr;
+}
+
+void NetworkInterface::setListener(NetworkInterfaceListener* listener)
+{
+    m_listener = listener;
 }
 
 } // namespace uNet
