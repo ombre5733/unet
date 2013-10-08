@@ -40,6 +40,10 @@ public:
     //! Handles the incoming \p packet with the given network protocol
     //! \p metaData. This method is only called, if filter() returned true.
     //!
+    //! \note This method is executed in the context of the kernel's event
+    //! loop. It is strongly adviced that implementations do not block the
+    //! calling thread but defer heavy packet processing to a worker thread.
+    //!
     //! \note If the \p packet is not passed on to another handler, it has
     //! to be disposed.
     virtual void receive(const ProtocolMetaData& metaData,
