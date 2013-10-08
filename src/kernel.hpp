@@ -332,52 +332,8 @@ void Kernel<TraitsT>::handleSendLinkLocalBroadcastEvent(const Event& event)
 template <typename TraitsT>
 void Kernel<TraitsT>::handleSendRawMessageEvent(const Event& event)
 {
-    BufferBase* message = event.buffer();
-    UNET_ASSERT(message->size() >= sizeof(NetworkProtocolHeader));
-
-    const NetworkProtocolHeader* header
-            = reinterpret_cast<const NetworkProtocolHeader*>(message->begin());
-    Neighbor* cachedNeighbor = nc.find(header->destinationAddress);
-    if (cachedNeighbor)
-    {
-        cachedNeighbor->networkInterface()->send(
-                    cachedNeighbor->linkLayerAddress(), *message);
-        return;
-    }
-
-    for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
-    {
-        NetworkInterface* ifc = m_interfaces[idx];
-        if (!ifc)
-            break;
-        if (!header->destinationAddress.isInSubnet(ifc->networkAddress()))
-            continue;
-
-        //Continue here....
-        assert(0);
-
-        /*
-        cachedNeighbor = nc.createEntry(header->destinationAddress, ifc);
-            nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
-                              routedDestination, ifc);
-
-        // Complete the header and put the message in the neighbor's queue.
-        header->sourceAddress = ifc->networkAddress().hostAddress();
-        cachedNeighbor->sendQueue().push_back(*message);
-
-        // Send out a neighbor solicitation.
-        sendNeighborSolicitation(ifc, routedDestination);
-        */
-
-        //ifc->send();
-        //ifc->send();
-
-        return;
-    }
-
-    // Cannot find a route for this packet.
-    // diagnostics.unknownRoute(destAddr);
-    message->dispose();
+    //! \todo This method is useless
+    handlePacketSendEvent(event);
 }
 
 template <typename TraitsT>
@@ -408,15 +364,9 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
     Neighbor* cachedNeighbor = nc.find(routedDestination);
     if (cachedNeighbor)
     {
-#if 0
-        UnetHeader header;
-        header.destinationAddress = destination;
-        header.sourceAddress = nextHopInfo->interface()->networkAddress().hostAddress();
-        message.push_front((uint8_t*)&header, sizeof(header));
-        //m_nextHopCache.cacheDestination(destAddr, nextHopInfo);
-        sendToNeighbor(nextHopInfo, message);
+        cachedNeighbor->networkInterface()->send(
+                    cachedNeighbor->linkLayerAddress(), *packet);
         return;
-#endif
     }
 
     // We have not sent anything to this neighor, yet, or the neighbor has
