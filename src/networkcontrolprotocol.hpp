@@ -436,7 +436,8 @@ private:
             return;
         }
 
-        std::cout << "NCP - Received neighbor solicitation" << std::endl;
+        std::cout << "NCP - Received neighbor solicitation on ["
+                  << metaData.networkInterface->name() << ']' << std::endl;
 
         const NeighborSolicitation solicitation
             = packet.pop_front<NeighborSolicitation>();
@@ -527,7 +528,8 @@ private:
             return;
         }
 
-        std::cout << "NCP - Received neighbor advertisment" << std::endl;
+        std::cout << "NCP - Received neighbor advertisment on ["
+                  << metaData.networkInterface->name() << ']' << std::endl;
 
         const NeighborAdvertisment advertisment
             = packet.pop_front<NeighborAdvertisment>();

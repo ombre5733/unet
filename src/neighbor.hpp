@@ -49,6 +49,7 @@ public:
         Probe
     };
 
+    //! Creates a neighbor.
     Neighbor()
         : m_state(Incomplete),
           m_interface(0),
@@ -100,11 +101,14 @@ public:
         m_linkLayerAddress = addr;
     }
 
+    //! Sets the discovery state.
+    //! Sets the neighbor discovery state to \p state.
     void setState(DiscoveryState state)
     {
         m_state = state;
     }
 
+    //! Returns the neighbor discovery state.
     DiscoveryState state() const
     {
         return m_state;
