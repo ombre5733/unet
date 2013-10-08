@@ -14,6 +14,7 @@ namespace uNet
 //! only requirement is that a zero value represents an unspecified address.
 struct LinkLayerAddress
 {
+    //! Creates an unspecified link-layer address.
     LinkLayerAddress()
         : address(0)
     {

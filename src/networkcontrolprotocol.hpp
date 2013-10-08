@@ -450,6 +450,8 @@ private:
             return;
         }
 
+        LinkLayerAddress sourceLinkLayerAddress;
+
         // If the sender has transmitted the solicitation with a valid source
         // address, we can create an entry in the neighbor cache right now.
         // This saves another round-trip when we want to send a reply.
@@ -469,7 +471,8 @@ private:
                         = NcpOption::find<NcpOption::SourceLinkLayerAddress>(
                             packet.begin(), packet.end()))
                 {
-                    neighbor->setLinkLayerAddress(srcLla->linkLayerAddress());
+                    sourceLinkLayerAddress = srcLla->linkLayerAddress();
+                    neighbor->setLinkLayerAddress(sourceLinkLayerAddress);
                 }
             }
         }
@@ -487,8 +490,11 @@ private:
         }
 
         NetworkProtocolHeader header;
-        header.sourceAddress = HostAddress();//! \todo: npHeader.destinationAddress;
-        header.destinationAddress = metaData.npHeader.sourceAddress;
+        header.sourceAddress = metaData.networkInterface->networkAddress().hostAddress();
+        header.destinationAddress
+                = metaData.npHeader.sourceAddress.unspecified()
+                  ? HostAddress::multicastAddress(link_local_all_device_multicast)
+                  : metaData.npHeader.sourceAddress;
         header.nextHeader = 1;
         header.length = packet.size() + sizeof(NetworkProtocolHeader);
         packet.push_front(header);
@@ -496,17 +502,15 @@ private:
         // If the solicitation has been sent from an unspecified host, the
         // advertisment is sent as a broadcast. Otherwise we can use
         // a unicast.
-        if (metaData.npHeader.sourceAddress.unspecified())
+        if (metaData.npHeader.sourceAddress.unspecified()
+            || (sourceLinkLayerAddress.unspecified()
+                && metaData.networkInterface->linkHasAddresses()))
         {
-
-            //! \todo We should use a non-blocking send call here
-            derived()->notify(Event::createSendLinkLocalBroadcast(
-                                  metaData.networkInterface, &packet));
+            metaData.networkInterface->broadcast(packet);
         }
         else
         {
-            //! \todo We should use a non-blocking send call here
-            derived()->notify(Event::createSendRawMessageEvent(&packet));
+            metaData.networkInterface->send(sourceLinkLayerAddress, packet);
         }
     }
 
@@ -537,6 +541,8 @@ private:
             packet.dispose();
             return;
         }
+
+        neighbor->setState(Neighbor::Reachable);
 
         if (NcpOption::TargetLinkLayerAddress* targetLla
             = NcpOption::find<NcpOption::TargetLinkLayerAddress>(

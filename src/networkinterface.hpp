@@ -67,8 +67,10 @@ public:
     explicit NetworkInterface(NetworkInterfaceListener* listener);
 
     //! Sends a broadcast.
-    //! Sends the given \p data as a broadcast over the link.
-    virtual void broadcast(BufferBase& data) = 0;
+    //! Broadcasts the \p packet to all interfaces on the link.
+    //! \note After sending the \p packet, the buffer has to be disposed.
+    //! \note This function must be thread-safe.
+    virtual void broadcast(BufferBase& packet) = 0;
 
     //! Returns the domain to which the interface is connected.
     Domain domain() const;
@@ -81,7 +83,7 @@ public:
     //! Returns the link-layer address.
     //! Returns the link-layer address which uniquely identifies this interface
     //! on the physical link. If the link does not have addresses, the method
-    //! should return a default constructed link-layer address.
+    //! should return an unspecified link-layer address.
     LinkLayerAddress linkLayerAddress() const
     {
         return m_linkLayerAddress;
@@ -122,11 +124,13 @@ public:
     void setNetworkAddress(const NetworkAddress& addr);
 
     //! Sends a packet.
-    //! Sends the packet \p data to another interface on the same link which
+    //! Sends the \p packet to another interface on the same link which
     //! is identified through its link-layer \p address. If the link does
     //! not have link-layer addresses (because it is a point-to-point
-    //! connection such as e.g. UART), the \p address should be ignored.
-    virtual void send(const LinkLayerAddress& address, BufferBase& data) = 0;
+    //! connection such as e.g. a UART), the \p address should be ignored.
+    //! \note After sending the \p packet, the buffer has to be disposed.
+    //! \note This function must be thread-safe.
+    virtual void send(const LinkLayerAddress& address, BufferBase& packet) = 0;
 
     //! Sets a listener.
     //! Attaches the given \p listener to this network interface.

@@ -13,6 +13,8 @@
 
 #include <OperatingSystem/OperatingSystem.h>
 
+#include <cstddef>
+
 #include "neighborcache.hpp"
 namespace uNet
 {
@@ -361,20 +363,34 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
     HostAddress routedDestination = m_routingTable.resolve(
                                         header.destinationAddress);
 
+    // Look up the neighbor in the cache.
     Neighbor* cachedNeighbor = nc.find(routedDestination);
     if (cachedNeighbor)
     {
-        cachedNeighbor->networkInterface()->send(
-                    cachedNeighbor->linkLayerAddress(), *packet);
+        std::cout << "Cached neighbor is " << (int)cachedNeighbor->state() << std::endl;
+        switch (cachedNeighbor->state())
+        {
+            case Neighbor::Incomplete:
+            case Neighbor::Probe:
+                cachedNeighbor->sendQueue().push_back(*packet);
+                break;
+            case Neighbor::Reachable:
+                cachedNeighbor->networkInterface()->send(
+                            cachedNeighbor->linkLayerAddress(), *packet);
+                break;
+            case Neighbor::Stale:
+                assert(0);
+        }
+
         return;
     }
 
     // We have not sent anything to this neighor, yet, or the neighbor has
     // been removed from the cache. Now the problem is that we do not know the
     // link-layer address of the target. We loop over all interfaces and
-    // look for one which is in the target's subnet, send a neighbor
-    // solicitation broadcast message over this interface and queue the message
-    // until we receive a neighbor advertisment.
+    // look for one which is in the target's subnet, send a Neighbor
+    // Solicitation over this interface and queue the packet until we receive
+    // a neighbor advertisment.
     for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
     {
         NetworkInterface* ifc = m_interfaces[idx];
@@ -389,7 +405,7 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
                               routedDestination, ifc);
         */
 
-        // Complete the header and put the message in the neighbor's queue.
+        // Complete the header and put the packet in the neighbor's queue.
         std::memcpy(packet->begin() + offsetof(NetworkProtocolHeader, sourceAddress),
                     &ifc->networkAddress().hostAddress(),
                     sizeof(ifc->networkAddress().hostAddress()));

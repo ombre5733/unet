@@ -21,12 +21,7 @@ using namespace weos;
 class MemoryBusInterface : public NetworkInterface
 {
 public:
-    MemoryBusInterface(Kernel *kernel, const std::string& name, MemoryBus* bus);
-
-    const std::string& name() const
-    {
-        return m_name;
-    }
+    MemoryBusInterface(Kernel *kernel, const char *name, MemoryBus* bus);
 
     virtual void broadcast(BufferBase& data) override;
     virtual bool linkHasAddresses() const override { return false; }
@@ -44,10 +39,9 @@ private:
     std::atomic<bool> m_hasReceivedData;
     std::atomic<bool> m_stop;
 
-    void run();
-
     MemoryBus* m_bus;
-    std::string m_name;
+
+    void run();
 
     friend class MemoryBus;
 };
@@ -86,19 +80,19 @@ private:
     std::vector<MemoryBusInterface*> m_interfaces;
 };
 
-MemoryBusInterface::MemoryBusInterface(Kernel* kernel, const std::string& name, MemoryBus *bus)
+MemoryBusInterface::MemoryBusInterface(Kernel* kernel, const char* name, MemoryBus *bus)
     : NetworkInterface(kernel),
-      m_bus(bus),
-      m_name(name),
       m_hasReceivedData(false),
-      m_stop(false)
+      m_stop(false),
+      m_bus(bus)
 {
+    setName(name);
     bus->connect(this);
 }
 
 void MemoryBusInterface::broadcast(BufferBase& data)
 {
-    std::cout << "[" << m_name << "] broadcast - " << data.size() << std::endl;
+    std::cout << "[" << name() << "] broadcast - " << data.size() << std::endl;
     std::vector<uint8_t> rawData(data.begin(), data.end());
     data.dispose();
     m_bus->send(this, rawData);
@@ -106,7 +100,7 @@ void MemoryBusInterface::broadcast(BufferBase& data)
 
 void MemoryBusInterface::send(const LinkLayerAddress& address, BufferBase& data)
 {
-    std::cout << "[" << m_name << "] send - " << data.size() << std::endl;
+    std::cout << "[" << name() << "] send - " << data.size() << std::endl;
     std::vector<uint8_t> rawData(data.begin(), data.end());
     data.dispose();
     m_bus->send(this, rawData);
@@ -128,7 +122,7 @@ void MemoryBusInterface::run()
 void MemoryBusInterface::receive(const std::vector<uint8_t> &data)
 {
     BufferBase* b = listener()->allocateBuffer();
-    for (int i = 0; i < data.size(); ++i)
+    for (std::size_t i = 0; i < data.size(); ++i)
     {
         uint8_t x = data[i];
         b->push_back(x);
@@ -160,13 +154,21 @@ void main(MemoryBus* bus)
     k.addInterface(&ifc);
     ifc.start();
 
-    // Neighbor Advertisment
     BufferBase* b = k.allocateBuffer();
     {
         uint16_t datum = 0x1234;
         b->push_back(datum);
     }
     k.send(HostAddress(0x0102), 0xFF, b);
+
+#if 0
+    b = k.allocateBuffer();
+    {
+        uint16_t datum = 0x4567;
+        b->push_back(datum);
+    }
+    k.send(HostAddress(0x0102), 0xFF, b);
+#endif
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();
@@ -189,7 +191,7 @@ public:
                          uNet::BufferBase& packet)
     {
         std::cout << "[app2] received <";
-        for (int i = 0; i < packet.size(); ++i)
+        for (std::size_t i = 0; i < packet.size(); ++i)
         {
             if (i)
                 std::cout << ' ';
@@ -254,7 +256,7 @@ void test_server(uNet::SimpleMessageProtocol* smp)
         BufferBase* b = skt.receive();
 
         std::cout << "<<Server>> received: ";
-        for (int i = 0; i < b->size(); ++i)
+        for (std::size_t i = 0; i < b->size(); ++i)
         {
             std::cout << std::hex << std::setfill('0') << std::setw(2) << int(*(b->begin() + i)) << std::dec << ' ';
         }

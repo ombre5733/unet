@@ -11,9 +11,7 @@ namespace uNet
 {
 
 //! The neighbor cache.
-//! The NeighborCache keeps track of all neighbors of a device, i.e. it keeps
-//! a list of all devices which can be accessed without the need for routing
-//! a message.
+//! The NeighborCache keeps track of the accessed neighbors.
 template <unsigned MaxNumNeighborsT>
 class NeighborCache
 {
@@ -26,13 +24,18 @@ public:
 
     Neighbor* createEntry(HostAddress address, NetworkInterface* ifc)
     {
-        Neighbor* entry = m_neighborPool.construct(address);
+        Neighbor* entry = m_neighborPool.construct();
+        entry->setHostAddress(address);
         entry->setInterface(ifc);
         entry->m_neighborCacheHook = m_neighbors;
         m_neighbors = entry;
         return entry;
     }
 
+    //! Performs a lookup in the cache.
+    //! Searches the neighbor with the given logical \p address in the neighbor
+    //! cache and returns a pointer to it. If no matching neighbor has been
+    //! cached, a null-pointer is returned.
     Neighbor* find(HostAddress address) const
     {
         Neighbor* iter = m_neighbors;

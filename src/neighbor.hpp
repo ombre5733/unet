@@ -12,44 +12,45 @@ namespace uNet
 class NetworkInterface;
 
 //! A neighbor on a physical link.
-//! A Neighbor object stores the available information about a neighbor, which
-//! is a device which can be directly accessed on a physical link without
-//! the need of routing a message through a device.
+//! A Neighbor object stores the available information about a neighbor. A
+//! neighbor is a device which can be directly accessed on a physical link
+//! without the need of routing a packet through a device.
 //!
 //! The Neighbor class combines the host address (the logical address) of a
-//! device with its link-layer address (its physical address). This information
-//! is important for sending a message over a physical link as the link has
-//! to address the receiver with its link-layer address rather than its
-//! logical address.
+//! device with its link-layer address (its physical address). The link-layer
+//! address is important for sending a packet over a link as it is needed
+//! by the interface to address the receiver.
 //!
-//! If neighbor discovery is in progress, no messages must be sent to a
-//! neighbor. For this purpose, every neighbor keeps a list of pending messages
+//! If neighbor discovery is in progress, no packets must be sent to a
+//! neighbor. For this purpose, every neighbor keeps a list of pending packets
 //! which have to be sent when the neighbor is known to be reachable. If
-//! the reachability cannot be determined within a certain time, the messages
-//! must be dropped.
+//! the reachability cannot be determined within a certain time, the packets
+//! are dropped.
 class Neighbor
 {
 public:
-    //! An enumeration of states of the neighbor.
-    enum State
+    //! An enumeration of discovery states.
+    //!
+    //! - Incomplete: The neighbor has just been created and the discovery
+    //!   has not been completed, yet.
+    //! - Reachable: The neighbor's reachability has been verified recently
+    //!   and packets can simply be sent to it.
+    //! - Stale: No response has been received from the neighbor for some
+    //!   time and the reachability is questionable. Before sending a packet
+    //!   to the neighbor, its reachability must be tested again.
+    //! - Probe: The neighbor discovery is in progress. Further packets
+    //!   addressed to this neighbor are delayed until after the neighbor
+    //!   discovery.
+    enum DiscoveryState
     {
         Incomplete,
         Reachable,
         Stale,
-        Delay,
         Probe
     };
 
     Neighbor()
         : m_interface(0),
-          m_state(Incomplete),
-          m_neighborCacheHook(0)
-    {
-    }
-
-    explicit Neighbor(HostAddress address)
-        : m_hostAddress(address),
-          m_interface(0),
           m_state(Incomplete),
           m_neighborCacheHook(0)
     {
@@ -76,7 +77,13 @@ public:
     //! Returns the buffer queue.
     BufferQueue& sendQueue()
     {
-        return m_sendQueue;
+        return m_delayedPackets;
+    }
+
+    //! Sets the network address.
+    void setHostAddress(HostAddress address)
+    {
+        m_hostAddress = address;
     }
 
     //! Sets the network interface.
@@ -93,28 +100,29 @@ public:
         m_linkLayerAddress = addr;
     }
 
-    void setState(State state)
+    void setState(DiscoveryState state)
     {
         m_state = state;
     }
 
-    State state() const
+    DiscoveryState state() const
     {
         return m_state;
     }
 
 private:
-    //! The logical address used for accessing the neighbor from this device.
+    //! The logical address used for addressing the neighbor from this device.
     HostAddress m_hostAddress;
     //! The interface through which this neighbor can be accessed.
     NetworkInterface* m_interface;
     //! The link-layer address of the neighbor.
     LinkLayerAddress m_linkLayerAddress;
-    //! A list of messages which have been queued for sending.
-    BufferQueue m_sendQueue;
+    //! A list of packets which have been delayed until after the neighbor
+    //! discovery.
+    BufferQueue m_delayedPackets;
 
 
-    State m_state;
+    DiscoveryState m_state;
 
 public:
     //! The next neighbor in the cache.
