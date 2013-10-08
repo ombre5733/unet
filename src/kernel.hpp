@@ -367,7 +367,6 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
     Neighbor* cachedNeighbor = nc.find(routedDestination);
     if (cachedNeighbor)
     {
-        std::cout << "Cached neighbor is " << (int)cachedNeighbor->state() << std::endl;
         switch (cachedNeighbor->state())
         {
             case Neighbor::Incomplete:

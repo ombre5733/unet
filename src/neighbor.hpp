@@ -50,8 +50,8 @@ public:
     };
 
     Neighbor()
-        : m_interface(0),
-          m_state(Incomplete),
+        : m_state(Incomplete),
+          m_interface(0),
           m_neighborCacheHook(0)
     {
     }
@@ -113,6 +113,8 @@ public:
 private:
     //! The logical address used for addressing the neighbor from this device.
     HostAddress m_hostAddress;
+    //! The discovery state of the neighbor.
+    DiscoveryState m_state;
     //! The interface through which this neighbor can be accessed.
     NetworkInterface* m_interface;
     //! The link-layer address of the neighbor.
@@ -120,9 +122,6 @@ private:
     //! A list of packets which have been delayed until after the neighbor
     //! discovery.
     BufferQueue m_delayedPackets;
-
-
-    DiscoveryState m_state;
 
 public:
     //! The next neighbor in the cache.

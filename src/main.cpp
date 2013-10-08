@@ -35,7 +35,7 @@ public:
 private:
     mutex m_receiverMutex;
     std::thread m_receiverThread;
-    std::vector<uint8_t> m_receiverData;
+    std::vector<std::vector<uint8_t> > m_receiverData;
     std::atomic<bool> m_hasReceivedData;
     std::atomic<bool> m_stop;
 
@@ -70,7 +70,7 @@ public:
                 continue;
 
             lock_guard<mutex> locker(receiver->m_receiverMutex);
-            receiver->m_receiverData = data;
+            receiver->m_receiverData.push_back(data);
             receiver->m_hasReceivedData = true;
         }
     }
@@ -113,7 +113,9 @@ void MemoryBusInterface::run()
         if (m_hasReceivedData)
         {
             lock_guard<mutex> locker(m_receiverMutex);
-            receive(m_receiverData);
+            for (std::size_t i = 0; i < m_receiverData.size(); ++i)
+                receive(m_receiverData[i]);
+            m_receiverData.clear();
             m_hasReceivedData = false;
         }
     }
@@ -161,7 +163,7 @@ void main(MemoryBus* bus)
     }
     k.send(HostAddress(0x0102), 0xFF, b);
 
-#if 0
+#if 1
     b = k.allocateBuffer();
     {
         uint16_t datum = 0x4567;
