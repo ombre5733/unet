@@ -386,15 +386,18 @@ public:
     //! \p metaData. The NCP payload is passed in the \p packet buffer.
     void handle(const ProtocolMetaData& metaData, BufferBase& packet)
     {
-        // Ignore malformed packets.
-        if (packet.size() < sizeof(NetworkControlProtocolHeader))
+        // Perform some sanity checks.
+        // - The packet is large enough
+        // - The packet must not have been routed (HopCnt is the maximum
+        //   possible value).
+        //! \todo Compare the checksum
+        if (   packet.size() < sizeof(NetworkControlProtocolHeader)
+            || metaData.npHeader.hopCount != NetworkProtocolHeader::maxHopCount)
         {
             // diagnostics.corruptHeader(packet.data());
+            packet.dispose();
             return;
         }
-        //! \todo Perform more checks
-        //! HopCnt must be the maximum possible value (no routing)
-        //! CheckSum must be correct
 
         const NetworkControlProtocolHeader header
                 = packet.copy_front<NetworkControlProtocolHeader>();
