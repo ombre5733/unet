@@ -94,8 +94,11 @@ public:
         return m_listener;
     }
 
+    //! Returns the interface's name.
+    //! Returns the interface's name. By default, this is an empty string.
     const char* name() const;
 
+    //! \todo Remove this function.
     virtual std::pair<bool, LinkLayerAddress> neighborLinkLayerAddress(
             HostAddress address) const;
 
@@ -110,6 +113,8 @@ public:
     //! Sets the link-layer address of the interface to \p address.
     void setLinkLayerAddress(LinkLayerAddress address);
 
+    //! Sets a name.
+    //! Assigns the \p name to this interface. This is useful for debugging.
     void setName(const char* name);
 
     //! Sets the logical address.
@@ -132,6 +137,7 @@ private:
     LinkLayerAddress m_linkLayerAddress;
     //! The listener which is notified about events from this interface.
     NetworkInterfaceListener* m_listener;
+    //! The name of the interface.
     const char* m_name;
     //! The address which has been assigned to the interface.
     NetworkAddress m_networkAddress;

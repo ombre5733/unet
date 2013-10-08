@@ -9,7 +9,7 @@ namespace uNet
 
 NetworkInterface::NetworkInterface(NetworkInterfaceListener* listener)
     : m_listener(listener),
-      m_name(0)
+      m_name("")
 {
 }
 
@@ -36,6 +36,7 @@ void NetworkInterface::setName(const char *name)
 
 void NetworkInterface::setNetworkAddress(const NetworkAddress &addr)
 {
+    UNET_ASSERT(!addr.hostAddress().multicast());
     m_networkAddress = addr;
 }
 
