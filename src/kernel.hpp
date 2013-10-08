@@ -265,34 +265,35 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
         packet->dispose();
         return;
     }
-    const NetworkProtocolHeader header
-            = packet->copy_front<NetworkProtocolHeader>();
+    ProtocolMetaData metaData;
+    metaData.npHeader = packet->copy_front<NetworkProtocolHeader>();
+    metaData.networkInterface = event.networkInterface();
 
     // Throw away malformed packets.
-    if (   header.version != 1
-        || packet->size() != header.length
-        || header.destinationAddress.unspecified()
-        || header.sourceAddress.multicast())
+    if (   metaData.npHeader.version != 1
+        || metaData.npHeader.length != packet->size()
+        || metaData.npHeader.destinationAddress.unspecified()
+        || metaData.npHeader.sourceAddress.multicast())
     {
         packet->dispose();
         return;
     }
 
-    if (header.destinationAddress == event.networkInterface()->networkAddress().hostAddress()
-        || header.destinationAddress.multicast())
+    if (   metaData.npHeader.destinationAddress
+               == metaData.networkInterface->networkAddress().hostAddress()
+        || metaData.npHeader.destinationAddress.multicast())
     {
         packet->moveBegin(sizeof(NetworkProtocolHeader));
         // The packet belongs to the interface and as such it needs to be
         // dispatched.
-        if (header.nextHeader == 1)
+        if (metaData.npHeader.nextHeader == 1)
         {
             // This is an NCP message.
-            NcpHandler<Kernel<TraitsT> >::handle(event.networkInterface(),
-                                                 header, *packet);
+            NcpHandler<Kernel<TraitsT> >::handle(metaData, *packet);
         }
         else
         {
-            m_protocolChain.dispatch(header, *packet);
+            m_protocolChain.dispatch(metaData, *packet);
         }
     }
     else
@@ -301,7 +302,8 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
 
         // Do not route packets which have an unspecified source address
         // because we cannot send a reply.
-        if (header.sourceAddress.unspecified())
+        if (   metaData.npHeader.sourceAddress.unspecified()
+            || metaData.npHeader.hopCount == 0)
         {
             packet->dispose();
             return;
@@ -374,7 +376,7 @@ template <typename TraitsT>
 void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
 {
     BufferBase* packet = event.buffer();
-    NetworkProtocolHeader* header = reinterpret_cast<NetworkProtocolHeader*>(packet->begin());
+    NetworkProtocolHeader header = packet->copy_front<NetworkProtocolHeader>();
 #if 0
     // Perform a look-up in the destination cache.
     Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);
@@ -393,7 +395,7 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
     // consult the routing table, which will map the destination address to
     // the one of the next neighbor.
     HostAddress routedDestination = m_routingTable.resolve(
-                                        header->destinationAddress);
+                                        header.destinationAddress);
 
     Neighbor* cachedNeighbor = nc.find(routedDestination);
     if (cachedNeighbor)
@@ -430,7 +432,7 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
         */
 
         // Complete the header and put the message in the neighbor's queue.
-        header->sourceAddress = ifc->networkAddress().hostAddress();
+        header.sourceAddress = ifc->networkAddress().hostAddress();
         cachedNeighbor->sendQueue().push_back(*packet);
 
         // Send out a neighbor solicitation.

@@ -4,12 +4,24 @@
 #include "../config.hpp"
 
 #include "../buffer.hpp"
+#include "../networkinterface.hpp"
 #include "../networkprotocol.hpp"
 
 #include <cstdint>
 
 namespace uNet
 {
+
+struct ProtocolMetaData
+{
+    ProtocolMetaData()
+        : networkInterface(0)
+    {
+    }
+
+    NetworkProtocolHeader npHeader;
+    NetworkInterface* networkInterface;
+};
 
 //! The base class for all custom protocol handlers.
 class CustomProtocolHandlerBase
@@ -20,17 +32,17 @@ public:
 
     //! Checks if an incoming packet is accepted by the protocol.
     //! Derived classes have to implement this method to filter incoming
-    //! packets by their network protocol \p header. If \p true is returned,
+    //! packets by their network protocol \p metaData. If \p true is returned,
     //! the packet is passed to receive().
-    virtual bool filter(const NetworkProtocolHeader& header) const = 0;
+    virtual bool filter(const ProtocolMetaData& metaData) const = 0;
 
     //! Deals with an incoming packet.
     //! Handles the incoming \p packet with the given network protocol
-    //! \p header. This method is only called, if filter() returned true.
+    //! \p metaData. This method is only called, if filter() returned true.
     //!
     //! \note If the \p packet is not passed on to another handler, it has
     //! to be disposed.
-    virtual void receive(const NetworkProtocolHeader& header,
+    virtual void receive(const ProtocolMetaData& metaData,
                          BufferBase& packet) = 0;
 
     /*

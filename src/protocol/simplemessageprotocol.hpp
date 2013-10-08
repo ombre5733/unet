@@ -3,8 +3,8 @@
 
 #include "../config.hpp"
 
+#include "protocol.hpp"
 #include "../kernelbase.hpp"
-#include "../networkprotocol.hpp"
 
 #include "OperatingSystem/OperatingSystem.h"
 
@@ -204,17 +204,19 @@ public:
     }
 
     //! Filters incoming packets.
-    //! Filters incoming packets by their network protocol header. If the
-    //! network protocol's "Next header" field matches the Simple Message
+    //! Filters incoming packets by their network protocol \p metaData.
+    //! If the network protocol's "Next header" field matches the Simple Message
     //! Protocol type, the method returns \p true.
-    bool filter(const NetworkProtocolHeader& header) const
+    bool filter(const ProtocolMetaData& metaData) const
     {
-        return header.nextHeader == SimpleMessageProtocol::headerType;
+        return metaData.npHeader.nextHeader
+                == SimpleMessageProtocol::headerType;
     }
 
     //! Handles an incoming SMP packet.
-    //! Handles the incoming SMP \p packet.
-    void receive(const NetworkProtocolHeader& header, BufferBase& packet);
+    //! Handles the incoming SMP \p packet with an associated network
+    //! protocol header \p metaData.
+    void receive(const ProtocolMetaData& metaData, BufferBase& packet);
 
     /*
     virtual void send(Service* service, CrossLayerSendData& metaData,

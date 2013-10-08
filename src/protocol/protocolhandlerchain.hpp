@@ -21,16 +21,16 @@ class ProtocolHandlerChain : public THandler, public TBaseChain
 public:
     //! Dispatches an incoming packet.
     //! Dispatches the incoming \p packet with an associated network protocol
-    //! \p header. If the protocol handler \p THandler accepts the packet
+    //! \p metaData. If the protocol handler \p THandler accepts the packet
     //! (\p filter() returns \p true), the packet is passed on to it.
     //! Otherwise, the dispatch() method inherited from the base chain is
     //! called.
-    void dispatch(const NetworkProtocolHeader& header, BufferBase& packet)
+    void dispatch(const ProtocolMetaData& metaData, BufferBase& packet)
     {
-        if (THandler::filter(header))
-            THandler::receive(header, packet);
+        if (THandler::filter(metaData))
+            THandler::receive(metaData, packet);
         else
-            TBaseChain::dispatch(header, packet);
+            TBaseChain::dispatch(metaData, packet);
     }
 
     //! Returns a pointer to a handler in this chain.
@@ -59,13 +59,13 @@ public:
 
     //! Dispatches an incoming packet.
     //! Dispatches the incoming \p packet with its associated network protocol
-    //! \p header.
+    //! \p metaData.
     //! If a custom protocol handler has been set and it accepts the \p header,
     //! the packet is passed on to it. Otherwise, the packet is disposed.
-    void dispatch(const NetworkProtocolHeader& header, BufferBase& packet)
+    void dispatch(const ProtocolMetaData& metaData, BufferBase& packet)
     {
-        if (m_customHandler && m_customHandler->filter(header))
-            m_customHandler->receive(header, packet);
+        if (m_customHandler && m_customHandler->filter(metaData))
+            m_customHandler->receive(metaData, packet);
         else
         {
             //  No one wants to deal with the packet so it is discarded.

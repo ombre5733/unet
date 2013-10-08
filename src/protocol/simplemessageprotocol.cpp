@@ -73,7 +73,7 @@ bool Socket::filterPacket(std::uint8_t destinationPort, BufferBase& packet)
 //     SimpleMessageProtocol
 // ----=====================================================================----
 
-void SimpleMessageProtocol::receive(const NetworkProtocolHeader& npHeader,
+void SimpleMessageProtocol::receive(const ProtocolMetaData& /*metaData*/,
                                     BufferBase& packet)
 {
     if (packet.size() < sizeof(SimpleMessageProtocolHeader))
@@ -83,13 +83,11 @@ void SimpleMessageProtocol::receive(const NetworkProtocolHeader& npHeader,
     }
     std::cout << "This is a SMP message" << std::endl;
 
-    const SimpleMessageProtocolHeader* header
-            = reinterpret_cast<const SimpleMessageProtocolHeader*>(
-                  packet.begin());
-    packet.moveBegin(sizeof(SimpleMessageProtocolHeader));
+    const SimpleMessageProtocolHeader header
+            = packet.pop_front<SimpleMessageProtocolHeader>();
 
-    std::cout << "{SMP} src: " << int(header->sourcePort)
-              << " dest: " << int(header->destinationPort) << std::endl;
+    std::cout << "{SMP} src: " << int(header.sourcePort)
+              << " dest: " << int(header.destinationPort) << std::endl;
 
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_socketMutex);
     if (m_socketList.empty())
@@ -102,7 +100,7 @@ void SimpleMessageProtocol::receive(const NetworkProtocolHeader& npHeader,
                              end_iter = m_socketList.end();
          iter != end_iter; ++iter)
     {
-        if (iter->filterPacket(header->destinationPort, packet))
+        if (iter->filterPacket(header.destinationPort, packet))
             return;
     }
     packet.dispose();

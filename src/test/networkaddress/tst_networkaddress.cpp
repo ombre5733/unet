@@ -38,6 +38,24 @@ TEST(HostAddress, SubnetCheck)
     ASSERT_TRUE(addr.isInSubnet(0x12FF, 0xFF00));
     ASSERT_FALSE(addr.isInSubnet(0x1300, 0xFF00));
     ASSERT_FALSE(addr.isInSubnet(0x13FF, 0xFF00));
+
+    ASSERT_TRUE(addr.isInSubnet(uNet::NetworkAddress(0x1200, 0xFF00)));
+    ASSERT_TRUE(addr.isInSubnet(uNet::NetworkAddress(0x12FF, 0xFF00)));
+    ASSERT_FALSE(addr.isInSubnet(uNet::NetworkAddress(0x1300, 0xFF00)));
+    ASSERT_FALSE(addr.isInSubnet(uNet::NetworkAddress(0x13FF, 0xFF00)));
+
+    // The unspecified address is in no sub-net.
+    addr = uNet::HostAddress();
+    ASSERT_TRUE(addr.unspecified());
+    ASSERT_FALSE(addr.isInSubnet(0x1200, 0xFF00));
+    ASSERT_FALSE(addr.isInSubnet(0x12FF, 0xFF00));
+    ASSERT_FALSE(addr.isInSubnet(0x1300, 0xFF00));
+    ASSERT_FALSE(addr.isInSubnet(0x13FF, 0xFF00));
+
+    ASSERT_FALSE(addr.isInSubnet(uNet::NetworkAddress(0x1200, 0xFF00)));
+    ASSERT_FALSE(addr.isInSubnet(uNet::NetworkAddress(0x12FF, 0xFF00)));
+    ASSERT_FALSE(addr.isInSubnet(uNet::NetworkAddress(0x1300, 0xFF00)));
+    ASSERT_FALSE(addr.isInSubnet(uNet::NetworkAddress(0x13FF, 0xFF00)));
 }
 
 TEST(HostAddress, MulticastAddresses)

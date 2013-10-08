@@ -189,6 +189,8 @@ NCP option fields
 #include "networkprotocol.hpp"
 #include "linklayeraddress.hpp"
 
+#include "protocol/protocol.hpp"
+
 #include <cstring>
 #include <cstdint>
 
@@ -197,7 +199,7 @@ namespace uNet
 
 struct NetworkControlProtocolHeader
 {
-    NetworkControlProtocolHeader(std::uint8_t t, std::uint8_t c = 0)
+    NetworkControlProtocolHeader(std::uint8_t t = 0, std::uint8_t c = 0)
         : type(t),
           code(c)
     {
@@ -380,12 +382,9 @@ class NcpHandler
 {
 public:
     //! Handles a network control protocol message.
-    //! Handles an incomming NCP message which has been received via the
-    //! interface \p receivingInterface. The \p npHeader points to the
-    //! network protocol header in the message. The NCP payload is passed
-    //! in the \p packet buffer.
-    void handle(NetworkInterface* receivingInterface,
-                const NetworkProtocolHeader& npHeader, BufferBase& packet)
+    //! Handles an incoming NCP message with its associated network protocol
+    //! \p metaData. The NCP payload is passed in the \p packet buffer.
+    void handle(const ProtocolMetaData& metaData, BufferBase& packet)
     {
         // Ignore malformed packets.
         if (packet.size() < sizeof(NetworkControlProtocolHeader))
@@ -397,19 +396,16 @@ public:
         //! HopCnt must be the maximum possible value (no routing)
         //! CheckSum must be correct
 
-        const NetworkControlProtocolHeader* header
-                = reinterpret_cast<const NetworkControlProtocolHeader*>(
-                      packet.begin());
+        const NetworkControlProtocolHeader header
+                = packet.copy_front<NetworkControlProtocolHeader>();
 
-        switch (header->type)
+        switch (header.type)
         {
             case NeighborSolicitation::ncpType:
-                derived()->onNcpNeighborSolicitation(receivingInterface,
-                                                     npHeader, packet);
+                derived()->onNcpNeighborSolicitation(metaData, packet);
                 break;
             case NeighborAdvertisment::ncpType:
-                derived()->onNcpNeighborAdvertisment(receivingInterface,
-                                                     npHeader, packet);
+                derived()->onNcpNeighborAdvertisment(metaData, packet);
                 break;
             default:
                 // diagnostics.unknownNcpType(packet);
@@ -420,17 +416,15 @@ public:
 
 private:
     //! Handle a neighbor solicitation.
-    //! This method is called upon receiving a neighbor solicitation via
-    //! the network interface \p receivingInterface. The \p npHeader
-    //! points to the network protocol header. The \p packet buffer contains
-    //! the solicitation's payload.
+    //! This method is called upon receiving a neighbor solicitation. The
+    //! network protocol's meta data is passed in \p metaData and the \p packet
+    //! buffer contains the solicitation's payload.
     //!
     //! The function creates a neighbor advertisment which will be sent back
     //! over the link. If the solicitation has been sent from a valid unicast
     //! address and there is place in the neighbor cache, a cache entry
     //! is generated for the neighbor.
-    void onNcpNeighborSolicitation(NetworkInterface* receivingInterface,
-                                   const NetworkProtocolHeader& npHeader,
+    void onNcpNeighborSolicitation(const ProtocolMetaData& metaData,
                                    BufferBase& packet)
     {
         if (packet.size() < sizeof(NeighborSolicitation))
@@ -438,19 +432,18 @@ private:
 
         std::cout << "NCP - Received neighbor solicitation" << std::endl;
 
-        const NeighborSolicitation* solicitation
-            = reinterpret_cast<const NeighborSolicitation*>(packet.begin());
-        packet.moveBegin(sizeof(NeighborSolicitation));
+        const NeighborSolicitation solicitation
+            = packet.pop_front<NeighborSolicitation>();
 
         // If the sender has transmitted the solicitation with a valid source
         // address, we can create an entry in the neighbor cache right now.
         // This saves another round-trip when we want to send a reply.
-        if (!npHeader.sourceAddress.unspecified())
+        if (!metaData.npHeader.sourceAddress.unspecified())
         {
-            Neighbor* neighbor = derived()->nc.find(npHeader.sourceAddress);
+            Neighbor* neighbor = derived()->nc.find(metaData.npHeader.sourceAddress);
             if (!neighbor)
-                neighbor = derived()->nc.createEntry(npHeader.sourceAddress,
-                                                     receivingInterface);
+                neighbor = derived()->nc.createEntry(metaData.npHeader.sourceAddress,
+                                                     metaData.networkInterface);
             if (neighbor)
             {
                 if (NcpOption::SourceLinkLayerAddress* srcLla
@@ -462,19 +455,21 @@ private:
             }
         }
 
+        //! \todo This blocking allocation is really bad.
+        //! Possible solution: Add a SendNeighborAdvertismentEvent to the event list?
         BufferBase* buffer = derived()->allocateBuffer();
 
         NetworkControlProtocolMessageBuilder builder(*buffer);
-        builder.createNeighborAdvertisment(solicitation->targetAddress, true);
-        if (receivingInterface->linkHasAddresses())
+        builder.createNeighborAdvertisment(solicitation.targetAddress, true);
+        if (metaData.networkInterface->linkHasAddresses())
         {
             builder.addTargetLinkLayerAddressOption(
-                        receivingInterface->linkLayerAddress());
+                        metaData.networkInterface->linkLayerAddress());
         }
 
         NetworkProtocolHeader header;
         header.sourceAddress = HostAddress();//! \todo: npHeader.destinationAddress;
-        header.destinationAddress = npHeader.sourceAddress;
+        header.destinationAddress = metaData.npHeader.sourceAddress;
         header.nextHeader = 1;
         header.length = buffer->size() + sizeof(NetworkProtocolHeader);
         buffer->push_front(header);
@@ -482,10 +477,10 @@ private:
         // If the solicitation has been sent from an unspecified host, the
         // advertisment is sent as a broadcast. Otherwise we can use
         // a unicast.
-        if (npHeader.sourceAddress.unspecified())
+        if (metaData.npHeader.sourceAddress.unspecified())
         {
             derived()->notify(Event::createSendLinkLocalBroadcast(
-                                  receivingInterface, buffer));
+                                  metaData.networkInterface, buffer));
         }
         else
         {
@@ -494,12 +489,10 @@ private:
     }
 
     //! Handles a neighbor advertisment.
-    //! This method is called upon receiving a neighbor advertisment via
-    //! the network interface \p receivingInterface. The \p npHeader
-    //! points to the network protocol header. The \p packet buffer contains
-    //! the advertisment's payload.
-    void onNcpNeighborAdvertisment(NetworkInterface* receivingInterface,
-                                   const NetworkProtocolHeader& npHeader,
+    //! This method is called upon receiving a neighbor advertisment. The
+    //! network protocol's meta data is passed in \p metaData and the \p packet
+    //! buffer contains the advertisment's payload.
+    void onNcpNeighborAdvertisment(const ProtocolMetaData& metaData,
                                    BufferBase& packet)
     {
         if (packet.size() < sizeof(NeighborAdvertisment))
@@ -507,11 +500,10 @@ private:
 
         std::cout << "NCP - Received neighbor advertisment" << std::endl;
 
-        const NeighborAdvertisment* advertisment
-            = reinterpret_cast<const NeighborAdvertisment*>(packet.begin());
-        packet.moveBegin(sizeof(NeighborAdvertisment));
+        const NeighborAdvertisment advertisment
+            = packet.pop_front<NeighborAdvertisment>();
 
-        Neighbor* neighbor = derived()->nc.find(advertisment->targetAddress);
+        Neighbor* neighbor = derived()->nc.find(advertisment.targetAddress);
         if (!neighbor)
         {
             //! \todo If there is enough space in the neighbor cache, we might

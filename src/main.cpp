@@ -180,12 +180,12 @@ namespace app2
 class PacketHandler : public uNet::CustomProtocolHandlerBase
 {
 public:
-    virtual bool filter(const uNet::NetworkProtocolHeader& /*header*/) const
+    virtual bool filter(const uNet::ProtocolMetaData& /*metaData*/) const
     {
         return true;
     }
 
-    virtual void receive(const uNet::NetworkProtocolHeader& header,
+    virtual void receive(const uNet::ProtocolMetaData& metaData,
                          uNet::BufferBase& packet)
     {
         std::cout << "[app2] received <";
@@ -225,16 +225,16 @@ void main(MemoryBus* bus)
 class MyBufferHandler : public uNet::CustomProtocolHandlerBase
 {
 public:
-    virtual bool filter(const uNet::NetworkProtocolHeader& /*header*/) const
+    virtual bool filter(const uNet::ProtocolMetaData& /*metaData*/) const
     {
         return true;
     }
 
-    virtual void receive(const uNet::NetworkProtocolHeader& header,
+    virtual void receive(const uNet::ProtocolMetaData& metaData,
                          uNet::BufferBase &message)
     {
         std::cout << ">>Got a buffer of size " << message.size()
-                  << " with unknown header type " << int(header.nextHeader)
+                  << " with unknown header type " << int(metaData.npHeader.nextHeader)
                   << "<<" << std::endl;
     }
 };
@@ -279,16 +279,16 @@ void test_bufferhandlerchain()
     //pc.get<uNet::TcpHandlerStub>()->setOption(2);
 
     Buffer<256, 4>* b = new Buffer<256, 4>();
-    NetworkProtocolHeader nph;
+    ProtocolMetaData metaData;
     b->push_back(std::uint16_t(0xABCD));
-    nph.nextHeader = 10;
-    pc.dispatch(nph, *b);
+    metaData.npHeader.nextHeader = 10;
+    pc.dispatch(metaData, *b);
     b->push_back(std::uint16_t(0xEF01));
-    nph.nextHeader = 11;
-    pc.dispatch(nph, *b);
+    metaData.npHeader.nextHeader = 11;
+    pc.dispatch(metaData, *b);
     b->push_back(std::uint16_t(0x2106));
-    nph.nextHeader = 12;
-    pc.dispatch(nph, *b);
+    metaData.npHeader.nextHeader = 12;
+    pc.dispatch(metaData, *b);
 
     std::thread server(test_server, pc.get<SimpleMessageProtocol>());
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -299,8 +299,8 @@ void test_bufferhandlerchain()
         hdr.destinationPort = 23;
         b->push_front(hdr);
 
-        nph.nextHeader = 2;
-        pc.dispatch(nph, *b);
+        metaData.npHeader.nextHeader = 2;
+        pc.dispatch(metaData, *b);
     }
 
     server.join();
