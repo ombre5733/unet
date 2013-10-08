@@ -124,6 +124,11 @@ public:
         return m_bufferPool.allocate();
     }
 
+    virtual BufferBase* tryAllocateBuffer()
+    {
+        return m_bufferPool.try_allocate();
+    }
+
     //! \reimp
     virtual void notify(const Event& event)
     {
@@ -308,6 +313,9 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
             packet->dispose();
             return;
         }
+
+        //! \todo Implementation missing.
+        packet->dispose();
     }
 }
 
@@ -449,6 +457,10 @@ template <typename TraitsT>
 void Kernel<TraitsT>::sendNeighborSolicitation(NetworkInterface* ifc,
                                                HostAddress destAddr)
 {
+    //! \todo This is a blocking allocation. When all buffers are taken,
+    //! we run into a deadlock here. A solution might be to keep a list
+    //! of pending solicitations in the kernel and periodically try to
+    //! send them.
     BufferBase* buffer = allocateBuffer();
 
     NetworkControlProtocolMessageBuilder builder(*buffer);

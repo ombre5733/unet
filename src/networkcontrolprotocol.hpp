@@ -443,10 +443,14 @@ private:
         // This saves another round-trip when we want to send a reply.
         if (!metaData.npHeader.sourceAddress.unspecified())
         {
-            Neighbor* neighbor = derived()->nc.find(metaData.npHeader.sourceAddress);
+            Neighbor* neighbor = derived()->nc.find(
+                                     metaData.npHeader.sourceAddress);
             if (!neighbor)
-                neighbor = derived()->nc.createEntry(metaData.npHeader.sourceAddress,
-                                                     metaData.networkInterface);
+            {
+                neighbor = derived()->nc.createEntry(
+                               metaData.npHeader.sourceAddress,
+                               metaData.networkInterface);
+            }
             if (neighbor)
             {
                 if (NcpOption::SourceLinkLayerAddress* srcLla
@@ -458,11 +462,11 @@ private:
             }
         }
 
-        //! \todo This blocking allocation is really bad.
-        //! Possible solution: Add a SendNeighborAdvertismentEvent to the event list?
-        BufferBase* buffer = derived()->allocateBuffer();
+        // Build the neighbor advertisment in the same buffer as the
+        // solicitation. This saves one buffer allocation.
+        packet.clear();
 
-        NetworkControlProtocolMessageBuilder builder(*buffer);
+        NetworkControlProtocolMessageBuilder builder(packet);
         builder.createNeighborAdvertisment(solicitation.targetAddress, true);
         if (metaData.networkInterface->linkHasAddresses())
         {
@@ -474,20 +478,23 @@ private:
         header.sourceAddress = HostAddress();//! \todo: npHeader.destinationAddress;
         header.destinationAddress = metaData.npHeader.sourceAddress;
         header.nextHeader = 1;
-        header.length = buffer->size() + sizeof(NetworkProtocolHeader);
-        buffer->push_front(header);
+        header.length = packet.size() + sizeof(NetworkProtocolHeader);
+        packet.push_front(header);
 
         // If the solicitation has been sent from an unspecified host, the
         // advertisment is sent as a broadcast. Otherwise we can use
         // a unicast.
         if (metaData.npHeader.sourceAddress.unspecified())
         {
+
+            //! \todo We should use a non-blocking send call here
             derived()->notify(Event::createSendLinkLocalBroadcast(
-                                  metaData.networkInterface, buffer));
+                                  metaData.networkInterface, &packet));
         }
         else
         {
-            derived()->notify(Event::createSendRawMessageEvent(buffer));
+            //! \todo We should use a non-blocking send call here
+            derived()->notify(Event::createSendRawMessageEvent(&packet));
         }
     }
 

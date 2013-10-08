@@ -129,12 +129,14 @@ public:
 //! in the uNet library.
 class BufferBase : boost::noncopyable
 {
+    static const unsigned numReservedBytes = 32;
 public:
+
     explicit BufferBase(std::uint8_t* storageBegin,
                         BufferDisposer* disposer = 0)
         : m_disposer(disposer)
     {
-        m_begin = m_end = storageBegin + 32;
+        m_begin = m_end = storageBegin + numReservedBytes;
     }
 
     //! Adds a memento to the buffer.
@@ -151,6 +153,12 @@ public:
     std::size_t capacity() const
     {
         return static_cast<std::size_t>(storageEnd() - storageBegin());
+    }
+
+    //! Clears the buffer.
+    void clear()
+    {
+        m_begin = m_end = storageBegin() + numReservedBytes;
     }
 
     //! Returns the buffer disposer.
@@ -253,7 +261,7 @@ public:
         std::memcpy(m_begin, &data, sizeof(TType));
     }
 
-    //! Places the begin and end pointers to the beginning of the storage.
+    //! Places the begin and end iterators to the beginning of the storage.
     void rewind()
     {
         m_begin = m_end = storageBegin();
