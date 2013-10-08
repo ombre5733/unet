@@ -221,7 +221,7 @@ struct NeighborSolicitation
     }
 
     NetworkControlProtocolHeader header;
-    std::uint16_t targetAddress;
+    HostAddress targetAddress;
     std::uint16_t reserved;
 };
 
@@ -237,7 +237,7 @@ struct NeighborAdvertisment
     }
 
     NetworkControlProtocolHeader header;
-    std::uint16_t targetAddress;
+    HostAddress targetAddress;
     bool solicited : 1;
     std::uint16_t reserved : 15;
 };
@@ -384,7 +384,7 @@ public:
     //! Handles a network control protocol message.
     //! Handles an incoming NCP message with its associated network protocol
     //! \p metaData. The NCP payload is passed in the \p packet buffer.
-    void handle(const ProtocolMetaData& metaData, BufferBase& packet)
+    void receive(const ProtocolMetaData& metaData, BufferBase& packet)
     {
         // Perform some sanity checks.
         // - The packet is large enough
@@ -412,9 +412,9 @@ public:
                 break;
             default:
                 // diagnostics.unknownNcpType(packet);
+                packet.dispose();
                 break;
         }
-        packet.dispose();
     }
 
 private:
@@ -431,12 +431,24 @@ private:
                                    BufferBase& packet)
     {
         if (packet.size() < sizeof(NeighborSolicitation))
+        {
+            packet.dispose();
             return;
+        }
 
         std::cout << "NCP - Received neighbor solicitation" << std::endl;
 
         const NeighborSolicitation solicitation
             = packet.pop_front<NeighborSolicitation>();
+
+        // Neighbor Solicitations can be sent as unicasts or multicasts. The
+        // filtering is done by the target address.
+        if (solicitation.targetAddress
+              != metaData.networkInterface->networkAddress().hostAddress())
+        {
+            packet.dispose();
+            return;
+        }
 
         // If the sender has transmitted the solicitation with a valid source
         // address, we can create an entry in the neighbor cache right now.
@@ -506,18 +518,23 @@ private:
                                    BufferBase& packet)
     {
         if (packet.size() < sizeof(NeighborAdvertisment))
+        {
+            packet.dispose();
             return;
+        }
 
         std::cout << "NCP - Received neighbor advertisment" << std::endl;
 
         const NeighborAdvertisment advertisment
             = packet.pop_front<NeighborAdvertisment>();
 
+        // Look up the neighbor to which we have sent the solicitation.
         Neighbor* neighbor = derived()->nc.find(advertisment.targetAddress);
         if (!neighbor)
         {
             //! \todo If there is enough space in the neighbor cache, we might
             //! want to create an entry there.
+            packet.dispose();
             return;
         }
 
@@ -527,6 +544,8 @@ private:
         {
             neighbor->setLinkLayerAddress(targetLla->linkLayerAddress());
         }
+
+        packet.dispose();
 
         // Send all packets which have been queued until the reachability
         // could be confirmed.

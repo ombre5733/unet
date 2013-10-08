@@ -294,7 +294,7 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
         if (metaData.npHeader.nextHeader == 1)
         {
             // This is an NCP message.
-            NcpHandler<Kernel<TraitsT> >::handle(metaData, *packet);
+            NcpHandler<Kernel<TraitsT> >::receive(metaData, *packet);
         }
         else
         {
@@ -390,7 +390,9 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
         */
 
         // Complete the header and put the message in the neighbor's queue.
-        header.sourceAddress = ifc->networkAddress().hostAddress();
+        std::memcpy(packet->begin() + offsetof(NetworkProtocolHeader, sourceAddress),
+                    &ifc->networkAddress().hostAddress(),
+                    sizeof(ifc->networkAddress().hostAddress()));
         cachedNeighbor->sendQueue().push_back(*packet);
 
         // Send out a neighbor solicitation.
@@ -411,6 +413,8 @@ void Kernel<TraitsT>::sendNeighborSolicitation(NetworkInterface* ifc,
     //! we run into a deadlock here. A solution might be to keep a list
     //! of pending solicitations in the kernel and periodically try to
     //! send them.
+    //! Another possibility is to have a internal buffer pool soley for the
+    //! purpose of sending neighbor solicitations.
     BufferBase* buffer = allocateBuffer();
 
     NetworkControlProtocolMessageBuilder builder(*buffer);
