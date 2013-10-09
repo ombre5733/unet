@@ -444,8 +444,9 @@ private:
 
         // Neighbor Solicitations can be sent as unicasts or multicasts. The
         // filtering is done by the target address.
-        if (solicitation.targetAddress
-              != metaData.networkInterface->networkAddress().hostAddress())
+        if (   solicitation.targetAddress.unspecified()
+            || solicitation.targetAddress
+                   != metaData.networkInterface->networkAddress().hostAddress())
         {
             packet.dispose();
             return;
@@ -465,6 +466,8 @@ private:
                 neighbor = derived()->nc.createEntry(
                                metaData.npHeader.sourceAddress,
                                metaData.networkInterface);
+                if (neighbor)
+                    neighbor->setState(Neighbor::Stale);
             }
             if (neighbor)
             {
@@ -500,6 +503,8 @@ private:
         header.length = packet.size() + sizeof(NetworkProtocolHeader);
         packet.push_front(header);
 
+        derived()->send(metaData.networkInterface, sourceLinkLayerAddress, packet);
+#if 0
         // If the solicitation has been sent from an unspecified host, the
         // advertisment is sent as a broadcast. Otherwise we can use
         // a unicast.
@@ -513,6 +518,7 @@ private:
         {
             metaData.networkInterface->send(sourceLinkLayerAddress, packet);
         }
+#endif
     }
 
     //! Handles a neighbor advertisment.

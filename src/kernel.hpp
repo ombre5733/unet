@@ -137,6 +137,10 @@ public:
         m_eventList.enqueue(event);
     }
 
+
+    //! \internal
+    void send(NetworkInterface* ifc, LinkLayerAddress linkLayerAddress, BufferBase& packet);
+
 private:
     //! The type of the buffer pool.
     typedef typename detail::buffer_pool_type_dispatcher<
@@ -222,6 +226,38 @@ void Kernel<TraitsT>::send(HostAddress destination, int headerType,
     header.length = packet->size() + sizeof(NetworkProtocolHeader);
     packet->push_front(header);
     m_eventList.enqueue(Event::createMessageSendEvent(packet));
+}
+
+template <typename TraitsT>
+void Kernel<TraitsT>::send(NetworkInterface* ifc, LinkLayerAddress linkLayerAddress, BufferBase& packet)
+{
+    if (packet.size() < sizeof(NetworkProtocolHeader))
+        ::uNet::throw_exception(-1);
+
+    HostAddress destinationAddress;
+    std::memcpy(&destinationAddress,
+                packet.begin() + offsetof(NetworkProtocolHeader, destinationAddress),
+                sizeof(NetworkProtocolHeader::destinationAddress));
+
+    if (destinationAddress.unspecified())
+        ::uNet::throw_exception(-1);//! \todo Use a system_error
+
+    std::memcpy(packet.begin() + offsetof(NetworkProtocolHeader, sourceAddress),
+                &ifc->networkAddress().hostAddress(),
+                sizeof(NetworkProtocolHeader::sourceAddress));
+
+    const NetworkProtocolHeader header
+            = packet.copy_front<NetworkProtocolHeader>();
+
+    if (destinationAddress.multicast()
+        || (linkLayerAddress.unspecified() && ifc->linkHasAddresses()))
+    {
+        ifc->broadcast(packet);
+    }
+    else
+    {
+        ifc->send(linkLayerAddress, packet);
+    }
 }
 
 // ----=====================================================================----
@@ -378,6 +414,8 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
                             cachedNeighbor->linkLayerAddress(), *packet);
                 break;
             case Neighbor::Stale:
+                // We are not completely sure if the neighbor is reachable.
+                // We transmit the packet.
                 assert(0);
         }
 
@@ -407,7 +445,7 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
         // Complete the header and put the packet in the neighbor's queue.
         std::memcpy(packet->begin() + offsetof(NetworkProtocolHeader, sourceAddress),
                     &ifc->networkAddress().hostAddress(),
-                    sizeof(ifc->networkAddress().hostAddress()));
+                    sizeof(NetworkProtocolHeader::sourceAddress));
         cachedNeighbor->sendQueue().push_back(*packet);
 
         // Send out a neighbor solicitation.
