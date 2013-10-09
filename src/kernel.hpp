@@ -118,7 +118,7 @@ public:
     //! to the packet. The type of the first header in the packet is encoded
     //! in the \p headerType. This type will be incorporated in the network
     //! header.
-    void send(HostAddress destination, int headerType, BufferBase* packet);
+    void send(HostAddress destination, std::uint8_t headerType, BufferBase* packet);
 
     //! \reimp
     virtual BufferBase* allocateBuffer()
@@ -175,7 +175,6 @@ private:
     void handlePacketSendEvent(const Event& event);
 
     void handleSendLinkLocalBroadcastEvent(const Event& event);
-    void handleSendRawMessageEvent(const Event& event);
 
     void sendNeighborSolicitation(NetworkInterface* ifc, HostAddress destAddr);
 
@@ -213,7 +212,7 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 }
 
 template <typename TraitsT>
-void Kernel<TraitsT>::send(HostAddress destination, int headerType,
+void Kernel<TraitsT>::send(HostAddress destination, std::uint8_t headerType,
                            BufferBase* packet)
 {
     // Be strict on what we send.
@@ -234,20 +233,14 @@ void Kernel<TraitsT>::send(NetworkInterface* ifc, LinkLayerAddress linkLayerAddr
     if (packet.size() < sizeof(NetworkProtocolHeader))
         ::uNet::throw_exception(-1);
 
-    HostAddress destinationAddress;
-    std::memcpy(&destinationAddress,
-                packet.begin() + offsetof(NetworkProtocolHeader, destinationAddress),
-                sizeof(NetworkProtocolHeader::destinationAddress));
+    HostAddress destinationAddress
+            = detail::getNetworkProtocolDestinationAddress(packet.begin());
 
     if (destinationAddress.unspecified())
         ::uNet::throw_exception(-1);//! \todo Use a system_error
 
-    std::memcpy(packet.begin() + offsetof(NetworkProtocolHeader, sourceAddress),
-                &ifc->networkAddress().hostAddress(),
-                sizeof(NetworkProtocolHeader::sourceAddress));
-
-    const NetworkProtocolHeader header
-            = packet.copy_front<NetworkProtocolHeader>();
+    detail::setNetworkProtocolSourceAddress(
+                packet.begin(), ifc->networkAddress().hostAddress());
 
     if (destinationAddress.multicast()
         || (linkLayerAddress.unspecified() && ifc->linkHasAddresses()))
@@ -279,9 +272,6 @@ void Kernel<TraitsT>::eventLoop()
                 break;
             case Event::MessageSend:
                 handlePacketSendEvent(event);
-                break;
-            case Event::SendRawMessage:
-                handleSendRawMessageEvent(event);
                 break;
             case Event::StopKernel:
                 stopEventThread = true;
@@ -368,13 +358,6 @@ void Kernel<TraitsT>::handleSendLinkLocalBroadcastEvent(const Event& event)
 }
 
 template <typename TraitsT>
-void Kernel<TraitsT>::handleSendRawMessageEvent(const Event& event)
-{
-    //! \todo This method is useless
-    handlePacketSendEvent(event);
-}
-
-template <typename TraitsT>
 void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
 {
     BufferBase* packet = event.buffer();
@@ -442,10 +425,8 @@ void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
                               routedDestination, ifc);
         */
 
-        // Complete the header and put the packet in the neighbor's queue.
-        std::memcpy(packet->begin() + offsetof(NetworkProtocolHeader, sourceAddress),
-                    &ifc->networkAddress().hostAddress(),
-                    sizeof(NetworkProtocolHeader::sourceAddress));
+        // Put the packet in the neighbor's queue. It will be sent when we get
+        // a Neighbor Advertisment.
         cachedNeighbor->sendQueue().push_back(*packet);
 
         // Send out a neighbor solicitation.

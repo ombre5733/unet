@@ -28,7 +28,6 @@ public:
         MessageSend,
 
         SendLinkLocalBroadcast,
-        SendRawMessage,
 
         StopKernel
     };
@@ -74,16 +73,6 @@ public:
     {
         Event ev(MessageReceive);
         ev.m_interface = ifc;
-        ev.m_buffer = buffer;
-        return ev;
-    }
-
-    //! Creates an event for sending a raw message.
-    //! Creates an event for sending the given \p buffer without prepending
-    //! a network header.
-    static Event createSendRawMessageEvent(BufferBase* buffer)
-    {
-        Event ev(SendRawMessage);
         ev.m_buffer = buffer;
         return ev;
     }

@@ -504,21 +504,6 @@ private:
         packet.push_front(header);
 
         derived()->send(metaData.networkInterface, sourceLinkLayerAddress, packet);
-#if 0
-        // If the solicitation has been sent from an unspecified host, the
-        // advertisment is sent as a broadcast. Otherwise we can use
-        // a unicast.
-        if (metaData.npHeader.sourceAddress.unspecified()
-            || (sourceLinkLayerAddress.unspecified()
-                && metaData.networkInterface->linkHasAddresses()))
-        {
-            metaData.networkInterface->broadcast(packet);
-        }
-        else
-        {
-            metaData.networkInterface->send(sourceLinkLayerAddress, packet);
-        }
-#endif
     }
 
     //! Handles a neighbor advertisment.
@@ -567,7 +552,7 @@ private:
         {
             BufferBase& buffer = neighbor->sendQueue().front();
             neighbor->sendQueue().pop_front();
-            derived()->notify(Event::createSendRawMessageEvent(&buffer));
+            derived()->notify(Event::createMessageSendEvent(&buffer));
         }
     }
 

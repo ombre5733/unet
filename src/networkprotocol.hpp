@@ -4,6 +4,7 @@
 #include "networkaddress.hpp"
 
 #include <cstdint>
+#include <cstring>
 
 namespace uNet
 {
@@ -85,6 +86,28 @@ struct NetworkProtocolHeader
     //! The maximum possible value for the hop count.
     static const std::uint8_t maxHopCount = 15;
 };
+
+namespace detail
+{
+inline
+HostAddress getNetworkProtocolDestinationAddress(std::uint8_t* buffer)
+{
+    HostAddress destinationAddress;
+    std::memcpy(&destinationAddress,
+                buffer + offsetof(NetworkProtocolHeader, destinationAddress),
+                sizeof(NetworkProtocolHeader::destinationAddress));
+    return destinationAddress;
+}
+
+inline
+void setNetworkProtocolSourceAddress(std::uint8_t* buffer, HostAddress addr)
+{
+    std::memcpy(buffer + offsetof(NetworkProtocolHeader, sourceAddress),
+                &addr,
+                sizeof(NetworkProtocolHeader::sourceAddress));
+}
+
+} // namespace detail
 
 } // namespace uNet
 
