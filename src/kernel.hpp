@@ -274,11 +274,9 @@ void Kernel<TraitsT>::sendFromEventLoop(BufferBase& packet)
             NetworkInterface* ifc = m_interfaces[idx];
             if (!ifc)
                 break;
-            if (destinationAddress.isInSubnet(ifc->networkAddress()))
-            {
-                ifc->broadcast(packet);
-                return;
-            }
+            sendFromEventLoop(ifc, LinkLayerAddress(), packet);
+            //! TODO: Copy the packet and continue with the next interface.
+            return;
         }
         packet.dispose();
         return;
@@ -314,8 +312,9 @@ void Kernel<TraitsT>::sendFromEventLoop(BufferBase& packet)
                 cachedNeighbor->sendQueue().push_back(packet);
                 break;
             case Neighbor::Reachable:
-                cachedNeighbor->networkInterface()->send(
-                            cachedNeighbor->linkLayerAddress(), packet);
+                sendFromEventLoop(cachedNeighbor->networkInterface(),
+                                  cachedNeighbor->linkLayerAddress(),
+                                  packet);
                 break;
             case Neighbor::Stale:
                 // We are not completely sure if the neighbor is reachable.
