@@ -3,6 +3,8 @@
 
 #include "config.hpp"
 
+#include "refcounted.hpp"
+
 #include <boost/intrusive/slist.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/utility.hpp>
@@ -139,6 +141,8 @@ public:
         m_begin = m_end = storageBegin + numReservedBytes;
     }
 
+    virtual ~BufferBase() {}
+
     //! Adds a memento to the buffer.
     //! Adds the \p memento to this buffer.
     void addMemento(BufferMemento& memento)
@@ -146,6 +150,18 @@ public:
         memento.m_begin = m_begin;
         memento.m_end = m_end;
         m_mementoStack.push_front(memento);
+    }
+
+    //! Returns the capacity of the free space past the end iterator.
+    std::size_t back_capacity() const
+    {
+        return static_cast<std::size_t>(storageEnd() - m_end);
+    }
+
+    //! Returns the capacity of the reserved space before the begin iterator.
+    std::size_t front_capacity() const
+    {
+        return static_cast<std::size_t>(m_begin - storageBegin());
     }
 
     //! Returns the buffer's capacity.
@@ -184,6 +200,8 @@ public:
         }
         else if (m_disposer)
             m_disposer->dispose(this);
+        else
+            delete this;
     }
 
     //! Returns a pointer to the beginning of the data.
@@ -291,6 +309,8 @@ private:
     //! A stack for storing the mementos.
     BufferMementoStack m_mementoStack;
 
+    ReferenceCounter m_referenceCounter;
+
 public:
     typedef boost::intrusive::slist_member_hook<
         boost::intrusive::link_mode<boost::intrusive::normal_link> >
@@ -298,7 +318,40 @@ public:
 
     //! A hook to put this buffer in a BufferQueue.
     queue_hook_t m_queueHook;
+
+    friend void acquire(BufferBase* ptr);
+    friend bool release(BufferBase *ptr);
+    friend void dispose(BufferBase* ptr);
 };
+
+//! For reference counting.
+//! \internal
+inline
+void acquire(BufferBase* ptr)
+{
+    if (ptr)
+        ptr->m_referenceCounter.inc();
+}
+
+//! For reference counting.
+//! \internal
+inline
+bool release(BufferBase* ptr)
+{
+    if (ptr)
+        return ptr->m_referenceCounter.dec();
+    else
+        return false;
+}
+
+//! For reference counting.
+//! \internal
+inline
+void dispose(BufferBase* ptr)
+{
+    if (ptr)
+        ptr->dispose();
+}
 
 //! A buffer queue.
 typedef boost::intrusive::slist<

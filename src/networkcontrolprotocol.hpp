@@ -503,7 +503,8 @@ private:
         header.length = packet.size() + sizeof(NetworkProtocolHeader);
         packet.push_front(header);
 
-        derived()->send(metaData.networkInterface, sourceLinkLayerAddress, packet);
+        derived()->sendFromEventLoop(metaData.networkInterface,
+                                     sourceLinkLayerAddress, packet);
     }
 
     //! Handles a neighbor advertisment.
@@ -535,6 +536,7 @@ private:
             return;
         }
 
+        //! \todo Should be stale?
         neighbor->setState(Neighbor::Reachable);
 
         if (NcpOption::TargetLinkLayerAddress* targetLla

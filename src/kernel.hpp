@@ -139,7 +139,9 @@ public:
 
 
     //! \internal
-    void send(NetworkInterface* ifc, LinkLayerAddress linkLayerAddress, BufferBase& packet);
+    void sendFromEventLoop(NetworkInterface* ifc, LinkLayerAddress linkLayerAddress, BufferBase& packet);
+
+    void sendFromEventLoop(BufferBase& packet);
 
 private:
     //! The type of the buffer pool.
@@ -228,10 +230,11 @@ void Kernel<TraitsT>::send(HostAddress destination, std::uint8_t headerType,
 }
 
 template <typename TraitsT>
-void Kernel<TraitsT>::send(NetworkInterface* ifc, LinkLayerAddress linkLayerAddress, BufferBase& packet)
+void Kernel<TraitsT>::sendFromEventLoop(NetworkInterface* ifc,
+                                        LinkLayerAddress linkLayerAddress,
+                                        BufferBase& packet)
 {
-    if (packet.size() < sizeof(NetworkProtocolHeader))
-        ::uNet::throw_exception(-1);
+    UNET_ASSERT(packet.size() >= sizeof(NetworkProtocolHeader));
 
     HostAddress destinationAddress
             = detail::getNetworkProtocolDestinationAddress(packet.begin());
@@ -251,6 +254,110 @@ void Kernel<TraitsT>::send(NetworkInterface* ifc, LinkLayerAddress linkLayerAddr
     {
         ifc->send(linkLayerAddress, packet);
     }
+}
+
+template <typename TraitsT>
+void Kernel<TraitsT>::sendFromEventLoop(BufferBase& packet)
+{
+    UNET_ASSERT(packet.size() >= sizeof(NetworkProtocolHeader));
+
+    HostAddress destinationAddress
+            = detail::getNetworkProtocolDestinationAddress(packet.begin());
+
+    if (destinationAddress.unspecified())
+        ::uNet::throw_exception(-1);//! \todo Use a system_error
+
+    if (destinationAddress.multicast())
+    {
+        for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
+        {
+            NetworkInterface* ifc = m_interfaces[idx];
+            if (!ifc)
+                break;
+            if (destinationAddress.isInSubnet(ifc->networkAddress()))
+            {
+                ifc->broadcast(packet);
+                return;
+            }
+        }
+        packet.dispose();
+        return;
+    }
+
+#if 0
+    // Perform a look-up in the destination cache.
+    Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);
+    if (nextHopInfo)
+    {
+        UnetHeader header;
+        header.destinationAddress = destination;
+        header.sourceAddress = nextHopInfo->interface()->networkAddress().hostAddress();
+        message.push_front((uint8_t*)&header, sizeof(header));
+        sendToNeighbor(nextHopInfo, message);
+        return;
+    }
+#endif
+
+    // We have not found an entry in the destination cache. The next step is to
+    // consult the routing table, which will map the destination address to
+    // the one of the next neighbor.
+    HostAddress routedDestination = m_routingTable.resolve(destinationAddress);
+
+    // Look up the neighbor in the cache.
+    Neighbor* cachedNeighbor = nc.find(routedDestination);
+    if (cachedNeighbor)
+    {
+        switch (cachedNeighbor->state())
+        {
+            case Neighbor::Incomplete:
+            case Neighbor::Probe:
+                cachedNeighbor->sendQueue().push_back(packet);
+                break;
+            case Neighbor::Reachable:
+                cachedNeighbor->networkInterface()->send(
+                            cachedNeighbor->linkLayerAddress(), packet);
+                break;
+            case Neighbor::Stale:
+                // We are not completely sure if the neighbor is reachable.
+                // We transmit the packet.
+                assert(0);
+        }
+
+        return;
+    }
+
+    // We have not sent anything to this neighor, yet, or the neighbor has
+    // been removed from the cache. Now the problem is that we do not know the
+    // link-layer address of the target. We loop over all interfaces and
+    // look for one which is in the target's subnet, send a Neighbor
+    // Solicitation over this interface and queue the packet until we receive
+    // a neighbor advertisment.
+    for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
+    {
+        NetworkInterface* ifc = m_interfaces[idx];
+        if (!ifc)
+            break;
+        if (!routedDestination.isInSubnet(ifc->networkAddress()))
+            continue;
+
+        cachedNeighbor = nc.createEntry(routedDestination, ifc);
+        /*
+            nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
+                              routedDestination, ifc);
+        */
+
+        // Put the packet in the neighbor's queue. It will be sent when we get
+        // a Neighbor Advertisment.
+        cachedNeighbor->sendQueue().push_back(packet);
+
+        // Send out a neighbor solicitation.
+        sendNeighborSolicitation(ifc, routedDestination);
+        return;
+    }
+
+    // Cannot find a route for this packet.
+    // diagnostics.unknownRoute(destAddr);
+    packet.dispose();
 }
 
 // ----=====================================================================----
@@ -360,83 +467,7 @@ void Kernel<TraitsT>::handleSendLinkLocalBroadcastEvent(const Event& event)
 template <typename TraitsT>
 void Kernel<TraitsT>::handlePacketSendEvent(const Event& event)
 {
-    BufferBase* packet = event.buffer();
-    NetworkProtocolHeader header = packet->copy_front<NetworkProtocolHeader>();
-#if 0
-    // Perform a look-up in the destination cache.
-    Neighbor* nextHopInfo = m_nextHopCache.lookupDestination(destination);
-    if (nextHopInfo)
-    {
-        UnetHeader header;
-        header.destinationAddress = destination;
-        header.sourceAddress = nextHopInfo->interface()->networkAddress().hostAddress();
-        message.push_front((uint8_t*)&header, sizeof(header));
-        sendToNeighbor(nextHopInfo, message);
-        return;
-    }
-#endif
-
-    // We have not found an entry in the destination cache. The next step is to
-    // consult the routing table, which will map the destination address to
-    // the one of the next neighbor.
-    HostAddress routedDestination = m_routingTable.resolve(
-                                        header.destinationAddress);
-
-    // Look up the neighbor in the cache.
-    Neighbor* cachedNeighbor = nc.find(routedDestination);
-    if (cachedNeighbor)
-    {
-        switch (cachedNeighbor->state())
-        {
-            case Neighbor::Incomplete:
-            case Neighbor::Probe:
-                cachedNeighbor->sendQueue().push_back(*packet);
-                break;
-            case Neighbor::Reachable:
-                cachedNeighbor->networkInterface()->send(
-                            cachedNeighbor->linkLayerAddress(), *packet);
-                break;
-            case Neighbor::Stale:
-                // We are not completely sure if the neighbor is reachable.
-                // We transmit the packet.
-                assert(0);
-        }
-
-        return;
-    }
-
-    // We have not sent anything to this neighor, yet, or the neighbor has
-    // been removed from the cache. Now the problem is that we do not know the
-    // link-layer address of the target. We loop over all interfaces and
-    // look for one which is in the target's subnet, send a Neighbor
-    // Solicitation over this interface and queue the packet until we receive
-    // a neighbor advertisment.
-    for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
-    {
-        NetworkInterface* ifc = m_interfaces[idx];
-        if (!ifc)
-            break;
-        if (!routedDestination.isInSubnet(ifc->networkAddress()))
-            continue;
-
-        cachedNeighbor = nc.createEntry(routedDestination, ifc);
-        /*
-            nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
-                              routedDestination, ifc);
-        */
-
-        // Put the packet in the neighbor's queue. It will be sent when we get
-        // a Neighbor Advertisment.
-        cachedNeighbor->sendQueue().push_back(*packet);
-
-        // Send out a neighbor solicitation.
-        sendNeighborSolicitation(ifc, routedDestination);
-        return;
-    }
-
-    // Cannot find a route for this packet.
-    // diagnostics.unknownRoute(destAddr);
-    packet->dispose();
+    sendFromEventLoop(*event.buffer());
 }
 
 template <typename TraitsT>
