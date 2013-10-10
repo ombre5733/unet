@@ -34,6 +34,14 @@ void Socket::bind(std::uint8_t port)
     m_state = Bound;
 }
 
+void Socket::connect(HostAddress destinationAddress,
+                     std::uint8_t destinationPort)
+{
+    OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
+    m_remoteAddress = destinationAddress;
+    m_remotePort = destinationPort;
+}
+
 void Socket::listen()
 {
     OperatingSystem::lock_guard<OperatingSystem::mutex> lock(m_mutex);
@@ -53,9 +61,9 @@ BufferBase* Socket::receive()
     return &packet;
 }
 
-void Socket::send(BufferBase* packet)
+void Socket::send(BufferBase& message)
 {
-
+    m_protocolHandler.send(m_localPort, m_remoteAddress, m_remotePort, message);
 }
 
 bool Socket::filterPacket(std::uint8_t destinationPort, BufferBase& packet)
@@ -104,6 +112,24 @@ void SimpleMessageProtocol::receive(const ProtocolMetaData& /*metaData*/,
             return;
     }
     packet.dispose();
+}
+
+void SimpleMessageProtocol::send(
+        std::uint8_t sourcePort, HostAddress destinationAddress,
+        std::uint8_t destinationPort, BufferBase& message)
+{
+    if (!m_kernel)
+    {
+        message.dispose();
+        return;
+    }
+
+    SimpleMessageProtocolHeader header;
+    header.sourcePort = sourcePort;
+    header.destinationPort = destinationPort;
+    message.push_front(header);
+    m_kernel->send(destinationAddress, SimpleMessageProtocol::headerType,
+                   message);
 }
 
 void SimpleMessageProtocol::addSocket(Socket& socket)

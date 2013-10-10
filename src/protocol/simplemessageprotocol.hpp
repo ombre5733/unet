@@ -148,16 +148,16 @@ public:
     //! to a remote port via connect().
     void bind(std::uint8_t port);
 
+    //! Connects to a remote port.
+    //! Connects this port to a remote port with number \p destinationPort on
+    //! the host with the address \p destinationAddress.
+    void connect(HostAddress destinationAddress, std::uint8_t destinationPort);
+
     //! Listens for packets.
     //! Turns this socket into an incoming one. It will listen on the port
     //! which has been set with bind() for packets. The incoming packets are
     //! queued until they are fetched via a call to receive().
     void listen();
-
-    //! Connects to a remote port.
-    //! Connects this port to a remote port with number \p destinationPort on
-    //! the host with the address \p destinationAddress.
-    void connect(HostAddress destinationAddress, std::uint8_t destinationPort);
 
     BufferBase* receive();
 
@@ -167,7 +167,7 @@ public:
 
     BufferBase* allocate();
 
-    void send(BufferBase* packet);
+    void send(BufferBase &packet);
 
 private:
     OperatingSystem::mutex m_mutex;
@@ -179,6 +179,9 @@ private:
     BufferQueue m_packetQueue;
     HostAddress m_localAddress;
     std::uint8_t m_localPort;
+
+    HostAddress m_remoteAddress;
+    std::uint8_t m_remotePort;
 
     bool filterPacket(std::uint8_t destinationPort, BufferBase& packet);
 
@@ -218,21 +221,10 @@ public:
     //! protocol header \p metaData.
     void receive(const ProtocolMetaData& metaData, BufferBase& packet);
 
-    /*
-    virtual void send(Service* service, CrossLayerSendData& metaData,
-                      BufferBase& message)
-    {
-    }
-
     void send(std::uint8_t sourcePort,
               HostAddress destinationAddress, std::uint8_t destinationPort,
-              BufferBase& message)
-    {
-        if (m_kernel)
-            m_kernel->send(destinationAddress, SimplePortProtocol::headerType,
-                           message);
-    }
-*/
+              BufferBase& message);
+
     //! Sets the associated kernel.
     //! Associates this protocol handler with the given \p kernel.
     void setKernel(KernelBase* kernel)
