@@ -31,24 +31,9 @@ a dispatcher, which maps incoming packets from a port number to a service.
 
 */
 
-#if 0
-struct SMP
-{
-    template <typename TKernel>
-    struct handler
-    {
-        typedef typename SMP_Handler<TKernel> type;
-    };
-
-    template <typename TKernel>
-    struct socket
-    {
-    };
-};
-#endif
-
-template <typename TProtocol>
-struct protocol_traits;
+class ReceiveSocketBase;
+class SendSocket;
+class SimpleMessageProtocol;
 
 //! The header of the Simple Message Protocol.
 struct SimpleMessageProtocolHeader
@@ -58,142 +43,218 @@ struct SimpleMessageProtocolHeader
     std::uint8_t reserved[6];
 };
 
-class SimpleMessageProtocol;
-
-#if 0
-class SocketBase
+namespace detail
 {
-public:
-    virtual ~SocketBase() {}
-    virtual void send(BufferBase& buffer) = 0;
+//! A descriptor for a receive connection.
+struct ReceiveConnectionDescriptor
+{
+    ReceiveConnectionDescriptor(ReceiveSocketBase& socket)
+        : m_receiveSocket(socket)
+    {
+    }
+
+    ReceiveSocketBase& m_receiveSocket;
+
+    //! \todo Need a condition variable here instead of this semaphore.
+    OperatingSystem::semaphore m_packetSemaphore;
+
+    OperatingSystem::mutex m_mutex;
+    BufferQueue m_packetQueue;
+
+    typedef boost::intrusive::slist_member_hook<
+        boost::intrusive::link_mode<boost::intrusive::normal_link> >
+        descriptor_list_hook_t;
+    //! A hook to add this descriptor to a list.
+    descriptor_list_hook_t m_desriptorListHook;
+
+    friend class ReceiveSocketBase;
 };
 
-template <unsigned TConnectionCount>
-class Socket : public SocketBase : boost::noncopyable
+} // namespace detail
+
+//! A handle for a receive connection.
+//! The ReceiveConnection is a handle for a connection of a receive socket.
+class ReceiveConnection
 {
-
-};
-
-//! A socket communicator.
-//! A SocketCommunicator is an object for communicating over a socket. It
-//! is created whenever a socket establishes a connection. The classic
-//! pedant is the file descriptor returned by accept() or connect().
-class SocketCommunicator : boost::noncopyable
-{
-public:
-    explicit SocketCommunicator(SocketBase& socket);
-
-
 private:
-    //! The socket to which this communicator belongs.
-    SocketBase& m_socket;
-};
+    BOOST_MOVABLE_BUT_NOT_COPYABLE(ReceiveConnection)
 
-void server()
-{
-    Socket<5> s(protocol); // 5 parallel connections to this port
-    s.bind(23);
-    s.listen();
-    while (1)
-    {
-        SocketCommunicator c = s.accept();
-        BufferBase* b = c.receive(); // c.try_receive() / c.try_receive_for(duration)
-        // c.close();
-    }
-}
-
-void client()
-{
-    Socket<> s(protocol);
-    s.bind(21);
-    SocketCommunicator c = s.connect(serverAddress, 23);
-    BufferBase* b = c.allocate(); // c.try_allocate() / c.try_allocate_for()
-    b->push_back(0x0815);
-    c.send(b);
-    // c.close();
-}
-
-#endif
-
-//! A socket.
-class Socket
-{
 public:
-    enum State
-    {
-        Disconnected,
-        Bound,
-        Listening,
-        Connecting,
-        Receiving,
-        Sending,
-        Closing
-    };
-
-    explicit Socket(SimpleMessageProtocol& protocol)
-        : m_protocolHandler(protocol),
-          m_addedToProtocolHandler(false),
-          m_state(Disconnected),
-          m_localPort(0)
+    //! Creates a receive connection.
+    //! Creates a receive connection which wraps the given \p descriptor.
+    ReceiveConnection(detail::ReceiveConnectionDescriptor* descriptor)
+        : m_descriptor(descriptor)
     {
     }
 
-    ~Socket();
+    // Move constructor.
+    ReceiveConnection(BOOST_RV_REF(ReceiveConnection) other)
+        :  m_descriptor(other.m_descriptor)
+    {
+        other.m_descriptor = 0;
+    }
 
-    void accept();
+    //! Destroys the connection.
+    //! Destroys the connection. If it is still open, it will be closed.
+    ~ReceiveConnection();
 
-    //! Binds the socket to a local port.
-    //! Binds the socket to the local \p port. A bound socket can then be
-    //! used for receiving packets by calling listen() or it can connect
-    //! to a remote port via connect().
-    void bind(std::uint8_t port);
+    // Move assignment
+    ReceiveConnection& operator= (BOOST_RV_REF(ReceiveConnection) other);
 
-    //! Connects to a remote port.
-    //! Connects this port to a remote port with number \p destinationPort on
-    //! the host with the address \p destinationAddress.
-    void connect(HostAddress destinationAddress, std::uint8_t destinationPort);
+    //! Closes the connection.
+    void close();
 
-    //! Listens for packets.
-    //! Turns this socket into an incoming one. It will listen on the port
-    //! which has been set with bind() for packets. The incoming packets are
-    //! queued until they are fetched via a call to receive().
-    void listen();
-
+    //! Waits until a packet is received.
     BufferBase* receive();
 
-    BufferBase* try_receive();
+private:
+    detail::ReceiveConnectionDescriptor* m_descriptor;
+};
 
-    BufferBase* try_receive_for();
+//! The base class for all receive sockets.
+//! ReceiveSocketBase is the base class for all receive sockets.
+class ReceiveSocketBase : boost::noncopyable
+{
+public:
+    //! Creates a receive socket.
+    //! Creates a receive socket which belongs to the handler \p protocolHandler
+    //! and is bound to the port \p localPort.
+    ReceiveSocketBase(SimpleMessageProtocol& protocolHandler,
+                      std::uint8_t localPort);
 
-    BufferBase* allocate();
+    //! Destroys the receive socket.
+    ~ReceiveSocketBase();
 
-    void send(BufferBase &packet);
+    //! Waits for a connection.
+    //! Listens for incoming connections and blocks until it is established.
+    ReceiveConnection accept();
+
+    //! \internal
+    void close(detail::ReceiveConnectionDescriptor* descriptor);
+
+    //! Returns the local port.
+    //! Returns the local port to which this socket is bound.
+    std::uint8_t localPort() const
+    {
+        return m_localPort;
+    }
+
+protected:
+    //! Implemented by derived classes to allocate a new descriptor.
+    virtual detail::ReceiveConnectionDescriptor* allocateDescriptor() = 0;
+    //! Implemented by derived classes to release a descriptor.
+    virtual void releaseDescriptor(
+            detail::ReceiveConnectionDescriptor* descriptor) = 0;
 
 private:
-    OperatingSystem::mutex m_mutex;
     //! The protocol handler to which this socket belongs.
     SimpleMessageProtocol& m_protocolHandler;
-    bool m_addedToProtocolHandler;
-    State m_state;
-    OperatingSystem::semaphore m_packetSemaphore;
-    BufferQueue m_packetQueue;
-    HostAddress m_localAddress;
+    //! The local port to which this socket is bound.
     std::uint8_t m_localPort;
 
-    HostAddress m_remoteAddress;
-    std::uint8_t m_remotePort;
+    OperatingSystem::mutex m_mutex;
+
+    typedef boost::intrusive::slist<
+            detail::ReceiveConnectionDescriptor,
+            boost::intrusive::member_hook<
+                detail::ReceiveConnectionDescriptor,
+                detail::ReceiveConnectionDescriptor::descriptor_list_hook_t,
+                &detail::ReceiveConnectionDescriptor::m_desriptorListHook>,
+            boost::intrusive::cache_last<false> > descriptor_list_t;
+    //! A list of descriptors for open connections.
+    descriptor_list_t m_descriptors;
 
     bool filterPacket(std::uint8_t destinationPort, BufferBase& packet);
+
+    friend class SimpleMessageProtocol;
 
 public:
     typedef boost::intrusive::slist_member_hook<
         boost::intrusive::link_mode<boost::intrusive::normal_link> >
-        protocol_list_hook_t;
-    protocol_list_hook_t m_protocolListHook;
-
-    friend class SimpleMessageProtocol;
+        socket_list_hook_t;
+    socket_list_hook_t m_socketListHook;
 };
 
+//! A concrete receive socket.
+//! The ReceiveSocket is a concrete receive socket whose maximum number of
+//! connections has to be provided via the template parameter
+//! \p TMaxNumConnections.
+template <unsigned TMaxNumConnections>
+class ReceiveSocket : public ReceiveSocketBase
+{
+public:
+    //! Creates a receive socket.
+    //! Creates a receive socket which receives messages via the \p protocol
+    //! handler on the given \p localPort.
+    ReceiveSocket(SimpleMessageProtocol& protocol, std::uint8_t localPort)
+        : ReceiveSocketBase(protocol, localPort)
+    {
+    }
+
+protected:
+    //! \reimp
+    virtual detail::ReceiveConnectionDescriptor* allocateDescriptor()
+    {
+        return m_descriptorPool.construct(*this);
+    }
+
+    //! \reimp
+    void releaseDescriptor(detail::ReceiveConnectionDescriptor* descriptor)
+    {
+        m_descriptorPool.destroy(descriptor);
+    }
+
+private:
+    //! A pool for allocating connection descriptors.
+    OperatingSystem::object_pool<detail::ReceiveConnectionDescriptor,
+                                 TMaxNumConnections> m_descriptorPool;
+};
+
+//! A connection to send packets via a send socket.
+class SendConnection
+{
+private:
+    //BOOST_MOVABLE_BUT_NOT_COPYABLE(SendConnection)
+
+public:
+    void send(BufferBase* packet);
+
+private:
+    SendConnection(SendSocket& socket,
+                   HostAddress destinationAddress,
+                   std::uint8_t destinationPort);
+
+    SendSocket& m_socket;
+    HostAddress m_destinationAddress;
+    std::uint8_t m_destinationPort;
+
+    //template <unsigned TMaxNumConnections>
+    friend class SendSocket;
+};
+
+//! The base class for all send sockets.
+class SendSocketBase : boost::noncopyable
+{
+
+};
+
+//! A send socket.
+//template <unsigned TMaxNumConnections>
+class SendSocket : public SendSocketBase
+{
+public:
+    SendSocket(SimpleMessageProtocol& protocolHandler, std::uint8_t localPort);
+
+    BufferBase* allocate();
+    SendConnection connect(HostAddress destinationAddress,
+                           std::uint8_t destinationPort);
+
+    void send(SendConnection& con, BufferBase* packet);
+
+private:
+    SimpleMessageProtocol& m_protocolHandler;
+    std::uint8_t m_localPort;
+};
 
 class SimpleMessageProtocol
 {
@@ -233,24 +294,25 @@ public:
     }
 
 private:
-    void addSocket(Socket &socket);
-    void removeSocket(Socket& socket);
+    void addReceiveSocket(ReceiveSocketBase& socket);
+    void removeReceiveSocket(ReceiveSocketBase& socket);
 
     KernelBase* m_kernel;
 
     OperatingSystem::mutex m_socketMutex;
 
     typedef boost::intrusive::slist<
-            Socket,
-            boost::intrusive::member_hook<
-                Socket,
-                Socket::protocol_list_hook_t,
-                &Socket::m_protocolListHook>,
-            boost::intrusive::cache_last<false> > socket_list_t;
-    //! A list of sockets which are attached to this protocol handler.
-    socket_list_t m_socketList;
+                ReceiveSocketBase,
+                boost::intrusive::member_hook<
+                    ReceiveSocketBase,
+                    ReceiveSocketBase::socket_list_hook_t,
+                    &ReceiveSocketBase::m_socketListHook>,
+                boost::intrusive::cache_last<false> > receiver_socket_list_t;
+    //! A list of receiver sockets which belong to this protocol handler.
+    receiver_socket_list_t m_receiveSockets;
 
     friend class Socket;
+    friend class ReceiveSocketBase;
 };
 
 } // namespace uNet

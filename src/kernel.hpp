@@ -5,6 +5,7 @@
 
 #include "bufferpool.hpp"
 #include "event.hpp"
+#include "kernelbase.hpp"
 #include "networkcontrolprotocol.hpp"
 #include "networkprotocol.hpp"
 #include "networkinterface.hpp"
@@ -91,6 +92,7 @@ struct event_list_type_dispatcher
 //! It keeps track of the interfaces and is in charge for routing packets.
 template <typename TraitsT = default_kernel_traits>
 class Kernel : public NetworkInterfaceListener,
+               public KernelBase,
                public NcpHandler<Kernel<TraitsT> >
 {
 public:
@@ -109,7 +111,7 @@ public:
     template <typename TProtocol>
     TProtocol* protocolHandler()
     {
-        return m_protocolChain.template get<TProtocol>();
+        return m_protocolChain.template cast<TProtocol>();
     }
 
     //! Sends a packet.
@@ -118,7 +120,7 @@ public:
     //! to the packet. The type of the first header in the packet is encoded
     //! in the \p headerType. This type will be incorporated in the network
     //! header.
-    void send(HostAddress destination, std::uint8_t headerType, BufferBase* packet);
+    void send(HostAddress destination, std::uint8_t headerType, BufferBase& packet);
 
     //! \reimp
     virtual BufferBase* allocateBuffer()
@@ -191,6 +193,8 @@ Kernel<TraitsT>::Kernel()
 {
     for (unsigned idx = 0; idx < traits_t::max_num_interfaces; ++idx)
         m_interfaces[idx] = 0;
+
+    m_protocolChain.setKernel(this);
 }
 
 template <typename TraitsT>
@@ -215,7 +219,7 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
 
 template <typename TraitsT>
 void Kernel<TraitsT>::send(HostAddress destination, std::uint8_t headerType,
-                           BufferBase* packet)
+                           BufferBase &packet)
 {
     // Be strict on what we send.
     if (destination.unspecified())
@@ -224,9 +228,9 @@ void Kernel<TraitsT>::send(HostAddress destination, std::uint8_t headerType,
     NetworkProtocolHeader header;
     header.destinationAddress = destination;
     header.nextHeader = headerType;
-    header.length = packet->size() + sizeof(NetworkProtocolHeader);
-    packet->push_front(header);
-    m_eventList.enqueue(Event::createMessageSendEvent(packet));
+    header.length = packet.size() + sizeof(NetworkProtocolHeader);
+    packet.push_front(header);
+    m_eventList.enqueue(Event::createMessageSendEvent(&packet));
 }
 
 template <typename TraitsT>

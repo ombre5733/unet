@@ -12,6 +12,7 @@
 
 namespace uNet
 {
+class KernelBase;
 
 //! A class for chaining protocol handlers.
 //! The ProtocolHandlerChain inherits a protocol handler and a base chain.
@@ -35,16 +36,22 @@ public:
 
     //! Returns a pointer to a handler in this chain.
     template <typename CastT>
-    CastT* get()
+    CastT* cast()
     {
         return static_cast<CastT*>(this);
     }
 
     //! Returns a pointer to a handler in this chain.
     template <typename CastT>
-    const CastT* get() const
+    const CastT* cast() const
     {
         return static_cast<const CastT*>(this);
+    }
+
+    void setKernel(KernelBase* kernel)
+    {
+        THandler::setKernel(kernel);
+        TBaseChain::setKernel(kernel);
     }
 };
 
@@ -75,16 +82,23 @@ public:
 
     //! Returns a pointer to a handler in this chain.
     template <typename CastT>
-    CastT* get()
+    CastT* cast()
     {
         return static_cast<CastT*>(this);
     }
 
     //! Returns a pointer to a handler in this chain.
     template <typename CastT>
-    const CastT* get() const
+    const CastT* cast() const
     {
         return static_cast<const CastT*>(this);
+    }
+
+    //! Returns the custom protocol handler.
+    //! Returns the custom protocol handler which has been assigned.
+    CustomProtocolHandlerBase* customHandler() const
+    {
+        return m_customHandler;
     }
 
     //! Sets a custom protocol handler.
@@ -92,6 +106,10 @@ public:
     void setCustomHandler(CustomProtocolHandlerBase* handler)
     {
         m_customHandler = handler;
+    }
+
+    void setKernel(KernelBase* /*kernel*/)
+    {
     }
 
 private:

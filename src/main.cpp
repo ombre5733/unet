@@ -161,7 +161,7 @@ void main(MemoryBus* bus)
         uint16_t datum = 0x1234;
         b->push_back(datum);
     }
-    k.send(HostAddress(0x0102), 0xFF, b);
+    k.send(HostAddress(0x0102), 0xFF, *b);
 
 #if 1
     b = k.allocateBuffer();
@@ -169,7 +169,7 @@ void main(MemoryBus* bus)
         uint16_t datum = 0x4567;
         b->push_back(datum);
     }
-    k.send(HostAddress(0x0102), 0xFF, b);
+    k.send(HostAddress(0x0102), 0xFF, *b);
 #endif
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -243,19 +243,27 @@ public:
     }
 };
 
+void test_client(uNet::SimpleMessageProtocol* smp)
+{
+    using namespace uNet;
+
+    SendSocket skt(*smp, 21);
+    SendConnection connection = skt.connect(0x0101, 23);
+    BufferBase* b = new Buffer<256, 4>();
+    connection.send(b);
+}
+
 void test_server(uNet::SimpleMessageProtocol* smp)
 {
     using namespace uNet;
 
-    Socket skt(*smp);
-    skt.bind(23);
-    skt.listen();
+    ReceiveSocket<1> skt(*smp, 23);
 
     while (1)
     {
-        skt.accept();
+        ReceiveConnection connection = skt.accept();
 
-        BufferBase* b = skt.receive();
+        BufferBase* b = connection.receive();
 
         std::cout << "<<Server>> received: ";
         for (std::size_t i = 0; i < b->size(); ++i)
@@ -279,7 +287,7 @@ void test_bufferhandlerchain()
 
     protocols pc;
     MyBufferHandler h;
-    pc.get<DefaultProtocolHandler>()->setCustomHandler(&h);
+    pc.cast<DefaultProtocolHandler>()->setCustomHandler(&h);
     //pc.get<uNet::TcpHandlerStub>()->setOption(2);
 
     Buffer<256, 4>* b = new Buffer<256, 4>();
@@ -294,7 +302,10 @@ void test_bufferhandlerchain()
     metaData.npHeader.nextHeader = 12;
     pc.dispatch(metaData, *b);
 
-    std::thread server(test_server, pc.get<SimpleMessageProtocol>());
+    test_client(pc.cast<SimpleMessageProtocol>());
+
+    /*
+    std::thread server(test_server, pc.cast<SimpleMessageProtocol>());
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     {
@@ -308,6 +319,7 @@ void test_bufferhandlerchain()
     }
 
     server.join();
+    */
     std::cout << std::endl << std::endl;
 }
 
