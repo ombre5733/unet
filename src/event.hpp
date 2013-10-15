@@ -46,9 +46,13 @@ public:
         m_buffer = other.m_buffer;
     }
 
-    HostAddress hostAddress() const
+    Event& operator= (const Event& other)
     {
-        return m_hostAddress;
+        UNET_ASSERT(m_next == 0);
+        m_type = other.m_type;
+        m_interface = other.m_interface;
+        m_buffer = other.m_buffer;
+        return *this;
     }
 
     Type type() const
@@ -116,7 +120,6 @@ private:
     Event* m_next;
 
     NetworkInterface* m_interface;
-    HostAddress m_hostAddress;
     BufferBase* m_buffer;
 
     template <unsigned>
@@ -135,23 +138,43 @@ public:
     {
     }
 
-    //! Adds an event.
-    //! Adds the \p event to the list.
-    void enqueue(const Event& event)
+    Event* try_construct()
     {
-        Event* ev = m_eventPool.construct(event);
+        return m_eventPool.try_construct();
+    }
+
+    void destroy(Event* ev)
+    {
+        m_eventPool.destroy(ev);
+    }
+
+    void enqueue(Event* event)
+    {
+        UNET_ASSERT(event->type() != Event::Invalid);
+        UNET_ASSERT(event->m_next == 0);
 
         OperatingSystem::lock_guard<OperatingSystem::mutex> locker(m_mutex);
         if (!m_eventList)
-            m_eventList = ev;
+            m_eventList = event;
         else
         {
             Event* iter = m_eventList;
             while (iter->m_next)
                 iter = iter->m_next;
-            iter->m_next = ev;
+            iter->m_next = event;
         }
         m_numEvents.post();
+    }
+
+    //! Adds the copy of an event.
+    //! Copies the \p event and adds the copy to the list.
+    void copy_enqueue(const Event& event)
+    {
+        UNET_ASSERT(event.type() != Event::Invalid);
+
+        Event* ev = m_eventPool.construct();
+        *ev = event;
+        this->enqueue(ev);
     }
 
     Event retrieve()
@@ -176,45 +199,6 @@ private:
     OperatingSystem::counting_object_pool<Event, MaxNumEventsT> m_eventPool;
     //! The number of events which have been enqueued in the list.
     OperatingSystem::semaphore m_numEvents;
-};
-
-//! A helper to release an event from an event list.
-//! The EventReleaser releases an event from an event list in its destructor.
-//! A typical use case is
-//! \code
-//! EventList list;
-//! Event* event = list.retrieve();
-//!
-//! // Remove the event from the list when we have dispatched it.
-//! EventReleaser releaser(list, *event);
-//! if (event->type() == ...)
-//! {
-//!    // Handle this event type.
-//! }
-//! else if (event->type() == ...)
-//! {
-//!    // Handle another event type.
-//! }
-//! \endcode
-template <typename ElementListT>
-class EventReleaser
-{
-public:
-    //! Creates an event releaser.
-    EventReleaser(ElementListT& list, Event& event)
-        : m_eventList(list),
-          m_event(event)
-    {
-    }
-
-    ~EventReleaser()
-    {
-        m_eventList.release(&m_event);
-    }
-
-private:
-    ElementListT& m_eventList;
-    Event& m_event;
 };
 
 } // namespace uNet

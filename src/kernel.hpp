@@ -108,6 +108,7 @@ public:
     //! Registers the interface \p ifc in the kernel.
     void addInterface(NetworkInterface* ifc);
 
+    //! Returns a protocol handler.
     template <typename TProtocol>
     TProtocol* protocolHandler()
     {
@@ -136,7 +137,7 @@ public:
     //! \reimp
     virtual void notify(const Event& event)
     {
-        m_eventList.enqueue(event);
+        m_eventList.copy_enqueue(event);
     }
 
 
@@ -200,7 +201,7 @@ Kernel<TraitsT>::Kernel()
 template <typename TraitsT>
 Kernel<TraitsT>::~Kernel()
 {
-    m_eventList.enqueue(Event::createStopKernelEvent());
+    m_eventList.copy_enqueue(Event::createStopKernelEvent());
     m_eventThread.join();
 }
 
@@ -230,7 +231,7 @@ void Kernel<TraitsT>::send(HostAddress destination, std::uint8_t headerType,
     header.nextHeader = headerType;
     header.length = packet.size() + sizeof(NetworkProtocolHeader);
     packet.push_front(header);
-    m_eventList.enqueue(Event::createMessageSendEvent(&packet));
+    m_eventList.copy_enqueue(Event::createMessageSendEvent(&packet));
 }
 
 template <typename TraitsT>
@@ -279,7 +280,7 @@ void Kernel<TraitsT>::sendFromEventLoop(BufferBase& packet)
             if (!ifc)
                 break;
             sendFromEventLoop(ifc, LinkLayerAddress(), packet);
-            //! TODO: Copy the packet and continue with the next interface.
+            //! \todo Copy the packet and continue with the next interface.
             return;
         }
         packet.dispose();
@@ -323,7 +324,7 @@ void Kernel<TraitsT>::sendFromEventLoop(BufferBase& packet)
             case Neighbor::Stale:
                 // We are not completely sure if the neighbor is reachable.
                 // We transmit the packet.
-                assert(0);
+                UNET_ASSERT(0 && "Not implemented, yet.");
         }
 
         return;
@@ -343,17 +344,33 @@ void Kernel<TraitsT>::sendFromEventLoop(BufferBase& packet)
         if (!routedDestination.isInSubnet(ifc->networkAddress()))
             continue;
 
+        // Check if the packet is addressed to ourselves.
+        if (ifc->networkAddress().hostAddress() == routedDestination)
+        {
+            Event* ev = m_eventList.try_construct();
+            if (ev)
+            {
+                *ev = Event::createMessageReceiveEvent(ifc, &packet);
+                m_eventList.enqueue(ev);
+            }
+            else
+            {
+                packet.dispose();
+            }
+            return;
+        }
+
         cachedNeighbor = nc.createEntry(routedDestination, ifc);
         /*
             nextHopInfo = m_nextHopCache.createNeighborCacheEntry(
                               routedDestination, ifc);
         */
 
-        // Put the packet in the neighbor's queue. It will be sent when we get
-        // a Neighbor Advertisment.
+        // Put the packet in the neighbor's queue. It will be sent when we
+        // receive a Neighbor Advertisment.
         cachedNeighbor->sendQueue().push_back(packet);
 
-        // Send out a neighbor solicitation.
+        // Send out a Neighbor Solicitation.
         sendNeighborSolicitation(ifc, routedDestination);
         return;
     }

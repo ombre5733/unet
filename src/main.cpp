@@ -1,5 +1,6 @@
 #include "kernel.hpp"
 #include "networkinterface.hpp"
+#include "protocol/simplemessageprotocol.hpp"
 
 #include <atomic>
 #include <iomanip>
@@ -8,7 +9,13 @@
 
 class MemoryBus;
 
-typedef uNet::Kernel<> Kernel;
+struct app_kernel_traits : public uNet::default_kernel_traits
+{
+    //! A list of protocols which are attached to the kernel.
+    typedef boost::mpl::vector<uNet::SimpleMessageProtocol> protocol_list_t;
+};
+
+typedef uNet::Kernel<app_kernel_traits> Kernel;
 
 using uNet::BufferBase;
 using uNet::HostAddress;
@@ -146,6 +153,27 @@ void MemoryBusInterface::stop()
 namespace app1
 {
 
+void test_client(Kernel& k)
+{
+    using namespace uNet;
+
+    SendSocket skt(*k.protocolHandler<uNet::SimpleMessageProtocol>(), 21);
+    SendConnection connection = skt.connect(0x0102, 23);
+    BufferBase* b = k.allocateBuffer();
+    {
+        uint16_t datum = 0x1234;
+        b->push_back(datum);
+    }
+    connection.send(b);
+
+    b = k.allocateBuffer();
+    {
+        uint16_t datum = 0x4567;
+        b->push_back(datum);
+    }
+    connection.send(b);
+}
+
 void main(MemoryBus* bus)
 {
     std::cout << "app1 started" << std::endl;
@@ -156,21 +184,7 @@ void main(MemoryBus* bus)
     k.addInterface(&ifc);
     ifc.start();
 
-    BufferBase* b = k.allocateBuffer();
-    {
-        uint16_t datum = 0x1234;
-        b->push_back(datum);
-    }
-    k.send(HostAddress(0x0102), 0xFF, *b);
-
-#if 1
-    b = k.allocateBuffer();
-    {
-        uint16_t datum = 0x4567;
-        b->push_back(datum);
-    }
-    k.send(HostAddress(0x0102), 0xFF, *b);
-#endif
+    test_client(k);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();
@@ -203,6 +217,32 @@ public:
     }
 };
 
+void test_server(Kernel& k)
+{
+    using namespace uNet;
+
+    ReceiveSocket<1> skt(*k.protocolHandler<uNet::SimpleMessageProtocol>(), 23);
+
+    int messageCounter = 0;
+    while (1)
+    {
+        ReceiveConnection connection = skt.accept();
+
+        BufferBase* b = connection.receive();
+        ++messageCounter;
+
+        std::cout << "<<Server>> received: ";
+        for (std::size_t i = 0; i < b->size(); ++i)
+        {
+            std::cout << std::hex << std::setfill('0') << std::setw(2) << int(*(b->begin() + i)) << std::dec << ' ';
+        }
+        std::cout << std::endl;
+
+        b->dispose();
+        break;
+    }
+}
+
 void main(MemoryBus* bus)
 {
     std::cout << "app2 started" << std::endl;
@@ -216,116 +256,16 @@ void main(MemoryBus* bus)
     k.addInterface(&ifc);
     ifc.start();
 
+    test_server(k);
+
     std::this_thread::sleep_for(std::chrono::seconds(1));
     ifc.stop();
 }
 
 } // namespace app2
 
-#include "protocol/protocolhandlerchain.hpp"
-#include "protocol/simpleportprotocol.hpp"
-#include "protocol/simplemessageprotocol.hpp"
-
-class MyBufferHandler : public uNet::CustomProtocolHandlerBase
-{
-public:
-    virtual bool filter(const uNet::ProtocolMetaData& /*metaData*/) const
-    {
-        return true;
-    }
-
-    virtual void receive(const uNet::ProtocolMetaData& metaData,
-                         uNet::BufferBase &message)
-    {
-        std::cout << ">>Got a buffer of size " << message.size()
-                  << " with unknown header type " << int(metaData.npHeader.nextHeader)
-                  << "<<" << std::endl;
-    }
-};
-
-void test_client(uNet::SimpleMessageProtocol* smp)
-{
-    using namespace uNet;
-
-    SendSocket skt(*smp, 21);
-    SendConnection connection = skt.connect(0x0101, 23);
-    BufferBase* b = new Buffer<256, 4>();
-    connection.send(b);
-}
-
-void test_server(uNet::SimpleMessageProtocol* smp)
-{
-    using namespace uNet;
-
-    ReceiveSocket<1> skt(*smp, 23);
-
-    while (1)
-    {
-        ReceiveConnection connection = skt.accept();
-
-        BufferBase* b = connection.receive();
-
-        std::cout << "<<Server>> received: ";
-        for (std::size_t i = 0; i < b->size(); ++i)
-        {
-            std::cout << std::hex << std::setfill('0') << std::setw(2) << int(*(b->begin() + i)) << std::dec << ' ';
-        }
-        std::cout << std::endl;
-
-        break;
-    }
-}
-
-void test_bufferhandlerchain()
-{
-    using namespace uNet;
-
-    typedef boost::mpl::vector<SimpleMessageProtocol> protocol_list_t;
-    //typedef boost::mpl::vector<> protocol_list_t;
-    typedef make_protocol_handler_chain<protocol_list_t>::type protocols;
-
-
-    protocols pc;
-    MyBufferHandler h;
-    pc.cast<DefaultProtocolHandler>()->setCustomHandler(&h);
-    //pc.get<uNet::TcpHandlerStub>()->setOption(2);
-
-    Buffer<256, 4>* b = new Buffer<256, 4>();
-    ProtocolMetaData metaData;
-    b->push_back(std::uint16_t(0xABCD));
-    metaData.npHeader.nextHeader = 10;
-    pc.dispatch(metaData, *b);
-    b->push_back(std::uint16_t(0xEF01));
-    metaData.npHeader.nextHeader = 11;
-    pc.dispatch(metaData, *b);
-    b->push_back(std::uint16_t(0x2106));
-    metaData.npHeader.nextHeader = 12;
-    pc.dispatch(metaData, *b);
-
-    test_client(pc.cast<SimpleMessageProtocol>());
-
-    /*
-    std::thread server(test_server, pc.cast<SimpleMessageProtocol>());
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    {
-        SimpleMessageProtocolHeader hdr;
-        hdr.sourcePort = 21;
-        hdr.destinationPort = 23;
-        b->push_front(hdr);
-
-        metaData.npHeader.nextHeader = 2;
-        pc.dispatch(metaData, *b);
-    }
-
-    server.join();
-    */
-    std::cout << std::endl << std::endl;
-}
-
 int main()
 {
-    test_bufferhandlerchain();
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     MemoryBus bus;
