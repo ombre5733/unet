@@ -285,13 +285,14 @@ void test_server(Kernel& k)
 
     ReceiveSocket<1> skt(*k.protocolHandler<uNet::SimpleMessageProtocol>(), 23);
 
-    int messageCounter = 0;
     while (1)
     {
         ReceiveConnection connection = skt.accept();
 
-        BufferBase* b = connection.receive();
-        ++messageCounter;
+        BufferBase* b = connection.try_receive_for(
+                            OperatingSystem::chrono::seconds(1));
+        if (!b)
+            break;
 
         std::cout << "<<app3 server>> received: ";
         for (std::size_t i = 0; i < b->size(); ++i)
@@ -301,7 +302,6 @@ void test_server(Kernel& k)
         std::cout << std::endl;
 
         b->dispose();
-        break;
     }
 }
 

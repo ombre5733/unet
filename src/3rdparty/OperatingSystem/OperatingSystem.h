@@ -10,7 +10,7 @@
 namespace OperatingSystem
 {
 // chrono.hpp
-using namespace weos::chrono;
+namespace chrono = weos::chrono;
 
 // mutex.hpp
 using weos::lock_guard;

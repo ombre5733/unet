@@ -2,7 +2,6 @@
 #define UNET_SIMPLEMESSAGEPROTOCOL_HPP
 
 #include "../config.hpp"
-
 #include "protocol.hpp"
 #include "../kernelbase.hpp"
 
@@ -106,6 +105,30 @@ public:
 
     //! Waits until a packet is received.
     BufferBase* receive();
+
+    //! Tries to receive a packet within a timeout.
+    //! Tries to receive a packet within the timeout period \p d. If no
+    //! packet has been received within this time, a null-pointer is
+    //! returned.
+    template <typename RepT, typename PeriodT>
+    BufferBase* try_receive_for(
+            const OperatingSystem::chrono::duration<RepT, PeriodT>& d)
+    {
+        if (!m_descriptor)
+            ::uNet::throw_exception(-1); //! \todo system_error
+
+        m_descriptor->m_packetSemaphore.try_wait_for(d);
+        OperatingSystem::lock_guard<OperatingSystem::mutex> queueLock(
+                    m_descriptor->m_mutex);
+        if (m_descriptor->m_packetQueue.empty())
+            return 0;
+        else
+        {
+            BufferBase& buffer = m_descriptor->m_packetQueue.front();
+            m_descriptor->m_packetQueue.pop_front();
+            return &buffer;
+        }
+    }
 
 private:
     detail::ReceiveConnectionDescriptor* m_descriptor;
