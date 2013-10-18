@@ -108,6 +108,12 @@ public:
     //! Registers the interface \p ifc in the kernel.
     void addInterface(NetworkInterface* ifc);
 
+    //! Adds a static route.
+    //! Adds a static entry to the routing table which routes packets for
+    //! the \p targetNetwork via the \p nextNeighbor.
+    void addStaticRoute(NetworkAddress targetNetwork,
+                        HostAddress nextNeighbor);
+
     //! Returns a protocol handler.
     template <typename TProtocol>
     TProtocol* protocolHandler()
@@ -216,6 +222,13 @@ void Kernel<TraitsT>::addInterface(NetworkInterface *ifc)
         }
 
     ::uNet::throw_exception(-1);//! \todo system_error()
+}
+
+template <typename TraitsT>
+void Kernel<TraitsT>::addStaticRoute(NetworkAddress targetNetwork,
+                                     HostAddress nextNeighbor)
+{
+    m_routingTable.addStaticRoute(targetNetwork, nextNeighbor);
 }
 
 template <typename TraitsT>
@@ -461,7 +474,7 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
         // The packet has to be routed.
 
         // Do not route packets which have an unspecified source address
-        // because we cannot send a reply.
+        // because we cannot return the reply.
         if (   metaData.npHeader.sourceAddress.unspecified()
             || metaData.npHeader.hopCount == 0)
         {
@@ -469,8 +482,8 @@ void Kernel<TraitsT>::handlePacketReceiveEvent(const Event& event)
             return;
         }
 
-        //! \todo Implementation missing.
-        packet->dispose();
+        //! \todo Reduce hop count.
+        sendFromEventLoop(*packet);
     }
 }
 

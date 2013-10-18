@@ -27,6 +27,9 @@ class RoutingTable
 public:
     RoutingTable();
 
+    //! Adds a static route.
+    //! Adds a static entry to the routing table which routes packets for
+    //! the \p targetNetwork via the \p nextNeighbor.
     void addStaticRoute(NetworkAddress targetNetwork,
                         HostAddress nextNeighbor);
 
