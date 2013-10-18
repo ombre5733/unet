@@ -5,14 +5,16 @@
 
 namespace uNet
 {
-class Neighbor;
-
+//! An entry in the routing table.
 class RoutingTableEntry
 {
 public:
-    NetworkAddress m_address;
-    Neighbor* m_neighbor;
-    //! If set, this entry is static.
+    //! The address of the target network.
+    NetworkAddress m_targetNetwork;
+    //! The address of the next neighbor to which the packet has to be sent
+    //! in order to reach the target network.
+    HostAddress m_nextNeighbor;
+    //! If set, this entry has been statically configured.
     bool m_static;
 };
 
@@ -23,7 +25,10 @@ public:
 class RoutingTable
 {
 public:
-    //void addStaticRoute(HostAddress destination);
+    RoutingTable();
+
+    void addStaticRoute(NetworkAddress targetNetwork,
+                        HostAddress nextNeighbor);
 
     //! Resolves an address.
     //! Looks up the \p destination address in the routing table and returns
@@ -34,6 +39,7 @@ public:
 private:
     //! The table entries.
     RoutingTableEntry m_tableEntries[10];
+    std::size_t m_numEntries;
 };
 
 } // namespace uNet

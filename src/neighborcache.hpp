@@ -22,6 +22,10 @@ public:
     {
     }
 
+    //! Creates a new entry.
+    //! Creates a new entry for a neighbor in this cache. The entry stores
+    //! the neighbor's \p address and the interface \p ifc via which it
+    //! can be reached.
     Neighbor* createEntry(HostAddress address, NetworkInterface* ifc)
     {
         Neighbor* entry = m_neighborPool.construct();

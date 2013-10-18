@@ -158,7 +158,7 @@ void test_client(Kernel& k)
     using namespace uNet;
 
     SendSocket skt(*k.protocolHandler<uNet::SimpleMessageProtocol>(), 21);
-    SendConnection connection = skt.connect(0x0102, 23);
+    SendConnection connection = skt.connect(0x0202, 23);
     BufferBase* b = k.allocateBuffer();
     {
         uint16_t datum = 0x1234;
@@ -174,20 +174,20 @@ void test_client(Kernel& k)
     connection.send(b);
 }
 
-void main(MemoryBus* bus)
+void main(MemoryBus* bus1)
 {
     std::cout << "app1 started" << std::endl;
 
     Kernel k;
-    MemoryBusInterface ifc(&k, "IF1", bus);
-    ifc.setNetworkAddress(NetworkAddress(0x0101, 0xFF00));
-    k.addInterface(&ifc);
-    ifc.start();
+    MemoryBusInterface ifc11(&k, "IF11", bus1);
+    ifc11.setNetworkAddress(NetworkAddress(0x0101, 0xFF00));
+    k.addInterface(&ifc11);
+    ifc11.start();
 
     test_client(k);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    ifc.stop();
+    ifc11.stop();
 }
 
 } // namespace app1
@@ -224,7 +224,7 @@ void test_server(Kernel& k)
     ReceiveSocket<1> skt(*k.protocolHandler<uNet::SimpleMessageProtocol>(), 23);
 
     int messageCounter = 0;
-    while (1)
+    while (0)
     {
         ReceiveConnection connection = skt.accept();
 
@@ -243,7 +243,7 @@ void test_server(Kernel& k)
     }
 }
 
-void main(MemoryBus* bus)
+void main(MemoryBus* bus1, MemoryBus* bus2)
 {
     std::cout << "app2 started" << std::endl;
 
@@ -251,30 +251,59 @@ void main(MemoryBus* bus)
     PacketHandler ph;
     k.protocolHandler<uNet::DefaultProtocolHandler>()->setCustomHandler(&ph);
 
-    MemoryBusInterface ifc(&k, "IF2", bus);
-    ifc.setNetworkAddress(NetworkAddress(0x0102, 0xFF00));
-    k.addInterface(&ifc);
-    ifc.start();
+    MemoryBusInterface ifc12(&k, "IF12", bus1);
+    ifc12.setNetworkAddress(NetworkAddress(0x0102, 0xFF00));
+    k.addInterface(&ifc12);
+    ifc12.start();
+
+    MemoryBusInterface ifc21(&k, "IF21", bus2);
+    ifc21.setNetworkAddress(NetworkAddress(0x0201, 0xFF00));
+    k.addInterface(&ifc21);
+    ifc21.start();
 
     test_server(k);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    ifc.stop();
+    ifc12.stop();
+    ifc21.stop();
 }
 
 } // namespace app2
+
+namespace app3
+{
+
+void main(MemoryBus* bus2)
+{
+    std::cout << "app3 started" << std::endl;
+
+    Kernel k;
+
+    MemoryBusInterface ifc22(&k, "IF22", bus2);
+    ifc22.setNetworkAddress(NetworkAddress(0x0202, 0xFF00));
+    k.addInterface(&ifc22);
+    ifc22.start();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ifc22.stop();
+}
+
+} // namespace app3
 
 int main()
 {
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    MemoryBus bus;
+    MemoryBus bus1;
+    MemoryBus bus2;
 
-    std::thread t1(app1::main, &bus);
-    std::thread t2(app2::main, &bus);
+    std::thread t1(app1::main, &bus1);
+    std::thread t2(app2::main, &bus1, &bus2);
+    std::thread t3(app3::main, &bus2);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     t1.join();
     t2.join();
+    t3.join();
 }
