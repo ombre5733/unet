@@ -187,7 +187,7 @@ void main(MemoryBus* bus1)
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
     k.addStaticRoute(uNet::NetworkAddress(0x0200, 0xFF00),
-                     HostAddress(0x0102));
+                     uNet::HostAddress(0x0102));
 
     test_client(k);
 
